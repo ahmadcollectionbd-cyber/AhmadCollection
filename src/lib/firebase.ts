@@ -1,15 +1,29 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getAnalytics, isSupported as analyticsIsSupported, type Analytics } from 'firebase/analytics';
 import { getAuth, type Auth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyA-Vwd0B2ZIAgkM6iBjgmOZDfcd5wfNunQ',
+  authDomain: 'ahmad-collection-c6b0c.firebaseapp.com',
+  projectId: 'ahmad-collection-c6b0c',
+  storageBucket: 'ahmad-collection-c6b0c.firebasestorage.app',
+  messagingSenderId: '542415004794',
+  appId: '1:542415004794:web:20570247c05ab1fd86c7c3',
+  measurementId: 'G-GRDM227NWP',
+};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? DEFAULT_FIREBASE_CONFIG.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? DEFAULT_FIREBASE_CONFIG.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? DEFAULT_FIREBASE_CONFIG.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? DEFAULT_FIREBASE_CONFIG.storageBucket,
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? DEFAULT_FIREBASE_CONFIG.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? DEFAULT_FIREBASE_CONFIG.appId,
+  measurementId:
+    import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ?? DEFAULT_FIREBASE_CONFIG.measurementId,
 };
 
 export const isFirebaseConfigured = Boolean(
@@ -20,13 +34,26 @@ let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
+let analytics: Analytics | null = null;
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
+
+  if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
+    analyticsIsSupported()
+      .then((ok) => {
+        if (ok && app) {
+          analytics = getAnalytics(app);
+        }
+      })
+      .catch(() => {
+        /* analytics is optional — silently ignore in unsupported envs */
+      });
+  }
 }
 
 export const googleProvider = new GoogleAuthProvider();
-export { app, auth, db, storage };
+export { app, auth, db, storage, analytics };

@@ -175,7 +175,7 @@ export function HeroSlider() {
             return (
               <SwiperSlide key={b.id}>
                 <div
-                  className={`relative aspect-[16/10] min-h-[420px] w-full overflow-hidden bg-gradient-to-br ${palette.bg} sm:aspect-[16/8] md:aspect-[16/7] lg:aspect-[16/6.5] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950`}
+                  className={`relative h-[440px] w-full overflow-hidden bg-gradient-to-br ${palette.bg} sm:h-[340px] md:h-[360px] lg:h-[380px] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950`}
                 >
                   {/* Floating leaves */}
                   <FloatingLeaf x="10%" y="6%" rot={-20} size={28} opacity={0.45} />
@@ -185,7 +185,7 @@ export function HeroSlider() {
                   <FloatingLeaf x="40%" y="68%" rot={20} size={20} opacity={0.3} />
 
                   {/* Content grid */}
-                  <div className="relative z-10 grid h-full grid-cols-12 items-center gap-2 px-5 py-6 sm:px-8 sm:py-8 md:px-12 md:py-10">
+                  <div className="relative z-10 grid h-full grid-cols-12 items-center gap-2 px-5 pb-14 pt-5 sm:px-8 sm:pb-16 sm:pt-6 md:px-12 md:pb-16 md:pt-6">
                     {/* LEFT — text panel */}
                     <motion.div
                       key={`${b.id}-text-${idx}`}
@@ -199,30 +199,30 @@ export function HeroSlider() {
                         <img
                           src="/logo.png"
                           alt="Ahmad Collection"
-                          className="h-16 w-auto drop-shadow-sm sm:h-20 md:h-24 lg:h-28"
+                          className="h-12 w-auto drop-shadow-sm sm:h-16 md:h-20 lg:h-24"
                         />
                       </div>
 
                       {/* Title — Bengali, two lines */}
-                      <h1 className="font-bn mt-3 text-2xl font-extrabold leading-tight text-[#0e5132] dark:text-white sm:text-3xl md:text-[2.6rem] lg:text-[3rem] md:leading-[1.1]">
+                      <h1 className="font-bn mt-2 text-xl font-extrabold leading-tight text-[#0e5132] dark:text-white sm:text-2xl md:text-[2rem] lg:text-[2.4rem] md:leading-[1.1]">
                         {content.titleBn[0]}
                       </h1>
-                      <h2 className="font-bn mt-1 text-xl font-extrabold leading-tight text-[#c81e1e] sm:text-2xl md:text-[2.1rem] lg:text-[2.4rem]">
+                      <h2 className="font-bn mt-0.5 text-lg font-extrabold leading-tight text-[#c81e1e] sm:text-xl md:text-[1.65rem] lg:text-[1.95rem]">
                         {content.titleBn[1]}
                       </h2>
 
                       {/* Divider */}
-                      <div className="mt-4 flex items-center gap-2 max-w-[280px]">
+                      <div className="mt-3 flex items-center gap-2 max-w-[260px]">
                         <span className="h-[2px] flex-1 bg-gradient-to-r from-[#0e5132]/60 to-transparent" />
-                        <FloatingLeaf x="0" y="0" rot={0} size={14} opacity={0.6} />
+                        <FloatingLeaf x="0" y="0" rot={0} size={12} opacity={0.6} />
                       </div>
 
                       {/* Trust badges */}
-                      <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
                         {content.trustBadges.map((badge, i) => (
                           <span
                             key={i}
-                            className="font-bn flex items-center gap-1.5 text-sm font-semibold text-[#0e5132] dark:text-emerald-200"
+                            className="font-bn flex items-center gap-1.5 text-xs font-semibold text-[#0e5132] dark:text-emerald-200 sm:text-sm"
                           >
                             <TrustIcon type={badge.icon} />
                             {badge.label}
@@ -231,11 +231,11 @@ export function HeroSlider() {
                       </div>
 
                       {/* CTAs */}
-                      <div className="mt-5 flex flex-wrap items-center gap-3">
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
                         {b.ctaHref && (
                           <Link
                             to={b.ctaHref}
-                            className="font-bn inline-flex items-center gap-2 rounded-full bg-[#0e5132] px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#0a3f27] hover:shadow-glow-brand sm:text-base"
+                            className="font-bn inline-flex items-center gap-2 rounded-full bg-[#0e5132] px-5 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#0a3f27] hover:shadow-glow-brand"
                           >
                             <FiShoppingCart className="h-4 w-4" />
                             {content.ctaBn}
@@ -243,7 +243,7 @@ export function HeroSlider() {
                         )}
                         <a
                           href={`tel:${PHONE}`}
-                          className="inline-flex items-center gap-2 rounded-full border border-[#0e5132]/30 bg-white/70 px-4 py-2.5 text-xs font-semibold text-[#0e5132] shadow-sm backdrop-blur transition hover:bg-white dark:border-white/20 dark:bg-white/10 dark:text-emerald-200"
+                          className="inline-flex items-center gap-2 rounded-full border border-[#0e5132]/30 bg-white/70 px-3.5 py-2 text-xs font-semibold text-[#0e5132] shadow-sm backdrop-blur transition hover:bg-white dark:border-white/20 dark:bg-white/10 dark:text-emerald-200"
                         >
                           <FiPhone className="h-3.5 w-3.5" />
                           <span className="hidden sm:inline">Call</span>
@@ -275,11 +275,11 @@ export function HeroSlider() {
                         />
 
                         {/* 100% Round Seal */}
-                        <div className="absolute right-3 top-3 flex h-24 w-24 -rotate-12 flex-col items-center justify-center rounded-full border-4 border-white bg-[#0e5132] text-center text-white shadow-2xl sm:h-28 sm:w-28 md:h-32 md:w-32">
-                          <div className="font-display text-lg font-extrabold leading-none sm:text-xl md:text-2xl">
+                        <div className="absolute right-2 top-2 flex h-16 w-16 -rotate-12 flex-col items-center justify-center rounded-full border-[3px] border-white bg-[#0e5132] text-center text-white shadow-2xl sm:right-3 sm:top-3 sm:h-20 sm:w-20 md:h-24 md:w-24">
+                          <div className="font-display text-sm font-extrabold leading-none sm:text-base md:text-lg">
                             {content.seal.line1}
                           </div>
-                          <div className="font-bn mt-1 whitespace-pre-line text-[9px] font-bold leading-tight sm:text-[10px] md:text-[11px]">
+                          <div className="font-bn mt-0.5 whitespace-pre-line text-[7px] font-bold leading-tight sm:text-[8px] md:text-[10px]">
                             {content.seal.line2}
                           </div>
                         </div>
