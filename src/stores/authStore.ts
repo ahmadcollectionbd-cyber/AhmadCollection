@@ -1,19 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export interface DemoUser {
+export type AuthRole = 'admin' | 'customer';
+
+export interface AuthUser {
   uid: string;
   email: string;
   name: string;
-  role: 'admin' | 'customer';
+  role: AuthRole;
   photoURL?: string;
 }
 
 interface AuthState {
-  user: DemoUser | null;
-  loginAsAdmin: () => void;
-  loginAsCustomer: (name: string, email: string) => void;
-  loginGoogle: () => void;
+  user: AuthUser | null;
+  hydrated: boolean;
+  setUser: (user: AuthUser | null) => void;
+  setHydrated: (hydrated: boolean) => void;
+  /** Local-only logout (used by Account page). Real Firebase signOut is handled by lib/auth.ts. */
   logout: () => void;
 }
 
@@ -21,29 +24,9 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      loginAsAdmin: () =>
-        set({
-          user: {
-            uid: 'admin-demo',
-            email: 'ahmadcollection.bd@gmail.com',
-            name: 'Admin',
-            role: 'admin',
-          },
-        }),
-      loginAsCustomer: (name, email) =>
-        set({
-          user: { uid: `c-${Date.now()}`, email, name, role: 'customer' },
-        }),
-      loginGoogle: () =>
-        set({
-          user: {
-            uid: `g-${Date.now()}`,
-            email: 'demo.user@gmail.com',
-            name: 'Demo User',
-            role: 'customer',
-            photoURL: 'https://i.pravatar.cc/100?img=12',
-          },
-        }),
+      hydrated: false,
+      setUser: (user) => set({ user, hydrated: true }),
+      setHydrated: (hydrated) => set({ hydrated }),
       logout: () => set({ user: null }),
     }),
     { name: 'ac-auth' },

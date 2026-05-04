@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import { Layout } from './components/layout/Layout';
+import { subscribeAuthState } from './lib/auth';
 import { Home } from './pages/Home';
 import { Shop } from './pages/Shop';
 import { Product } from './pages/Product';
@@ -26,6 +28,11 @@ import { ScrollToTop } from './components/ui/ScrollToTop';
 import './i18n';
 
 function App() {
+  useEffect(() => {
+    const unsubscribe = subscribeAuthState();
+    return () => unsubscribe();
+  }, []);
+
   return (
     <HelmetProvider>
       <BrowserRouter>
