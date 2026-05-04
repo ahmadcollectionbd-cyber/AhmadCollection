@@ -465,23 +465,13 @@ export const products: Product[] = [
 export const banners: Banner[] = [
   {
     id: 'b-1',
-    title: 'Ahmad Collection',
-    subtitle: 'সুলভ মূল্যে, বিশ্বস্ততার সঙ্গে',
-    image: '/banner.png',
-    ctaLabel: 'Shop Now',
+    title: 'খাঁটি ও বিশুদ্ধ পণ্য',
+    subtitle: 'Premium quality products from Ahmad Collection',
+    image: '/banners/founder-mustard.jpg',
+    ctaLabel: 'এখনই কিনুন',
     ctaHref: '/shop',
     active: true,
     order: 1,
-  },
-  {
-    id: 'b-2',
-    title: 'খাঁটি সরিষার তেল',
-    subtitle: 'Cold-pressed pure mustard oil — straight from our own bottling line',
-    image: '/banners/founder-mustard.jpg',
-    ctaLabel: 'Shop Mustard Oil',
-    ctaHref: '/shop?cat=mustard-oil',
-    active: true,
-    order: 2,
   },
   {
     id: 'b-3',
@@ -491,7 +481,7 @@ export const banners: Banner[] = [
     ctaLabel: 'Shop Khejur Gur',
     ctaHref: '/shop?cat=khejur-gur',
     active: true,
-    order: 3,
+    order: 2,
   },
   {
     id: 'b-4',
@@ -501,7 +491,7 @@ export const banners: Banner[] = [
     ctaLabel: 'Pre-order Mangoes',
     ctaHref: '/shop?cat=mango',
     active: true,
-    order: 4,
+    order: 3,
   },
   {
     id: 'b-5',
@@ -511,7 +501,7 @@ export const banners: Banner[] = [
     ctaLabel: 'Shop Dates & Attar',
     ctaHref: '/shop?cat=dates',
     active: true,
-    order: 5,
+    order: 4,
   },
 ];
 

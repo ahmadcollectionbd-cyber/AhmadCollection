@@ -27,7 +27,7 @@ export function Login() {
   const { register, handleSubmit, formState: { errors } } = useForm<Form>({ resolver: zodResolver(schema) });
 
   function onSubmit(values: Form) {
-    if (values.email === 'admin@ahmadcollection.bd') {
+    if (values.email.toLowerCase() === 'ahmadcollection.bd@gmail.com') {
       loginAsAdmin();
       toast.success('Welcome, Admin');
       navigate('/admin');
@@ -87,7 +87,7 @@ export function Login() {
             <Link to="/register" className="text-brand-600 hover:underline">{t('auth.register')}</Link>
           </p>
           <p className="mt-2 text-center text-[10px] text-slate-400">
-            Demo: use <b>admin@ahmadcollection.bd</b> to login as admin.
+            Demo: use <b>ahmadcollection.bd@gmail.com</b> to login as admin.
           </p>
         </div>
       </section>
