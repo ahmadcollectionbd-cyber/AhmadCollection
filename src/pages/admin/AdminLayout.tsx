@@ -1,0 +1,58 @@
+import { NavLink, Outlet } from 'react-router-dom';
+import { FiBarChart2, FiBox, FiGrid, FiHome, FiPackage, FiTag, FiUsers } from 'react-icons/fi';
+import { useAuthStore } from '../../stores/authStore';
+import { Link } from 'react-router-dom';
+
+const NAV = [
+  { to: '/admin', label: 'Dashboard', icon: <FiHome className="h-4 w-4" />, end: true },
+  { to: '/admin/products', label: 'Products', icon: <FiBox className="h-4 w-4" /> },
+  { to: '/admin/categories', label: 'Categories', icon: <FiGrid className="h-4 w-4" /> },
+  { to: '/admin/orders', label: 'Orders', icon: <FiPackage className="h-4 w-4" /> },
+  { to: '/admin/customers', label: 'Customers', icon: <FiUsers className="h-4 w-4" /> },
+  { to: '/admin/coupons', label: 'Coupons', icon: <FiTag className="h-4 w-4" /> },
+  { to: '/admin/analytics', label: 'Analytics', icon: <FiBarChart2 className="h-4 w-4" /> },
+];
+
+export function AdminLayout() {
+  const user = useAuthStore((s) => s.user);
+  if (user?.role !== 'admin') {
+    return (
+      <div className="section py-16 text-center">
+        <h1 className="heading text-2xl font-bold">Admin access required</h1>
+        <p className="mt-2 text-sm text-slate-500">Login with the demo admin account to access this section.</p>
+        <Link to="/login" className="btn-primary mt-4 inline-flex">Login</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="section mt-8">
+      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+        <aside className="card sticky top-24 h-fit p-3">
+          <nav className="flex flex-col gap-1">
+            {NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                end={n.end}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition ${
+                    isActive
+                      ? 'bg-brand-500/10 text-brand-700 dark:text-brand-300'
+                      : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/60'
+                  }`
+                }
+              >
+                {n.icon}
+                {n.label}
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
+        <div className="min-w-0">
+          <Outlet />
+        </div>
+      </div>
+    </div>
+  );
+}
