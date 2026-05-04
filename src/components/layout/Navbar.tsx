@@ -11,6 +11,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { useDataStore } from '../../stores/dataStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { signOutUser } from '../../lib/auth';
+import toast from 'react-hot-toast';
 
 export function Navbar() {
   const { t } = useTranslation();
@@ -18,7 +20,15 @@ export function Navbar() {
   const cartCount = useCartStore((s) => s.count());
   const wishlistCount = useWishlistStore((s) => s.ids.length);
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+
+  async function handleLogout() {
+    try {
+      await signOutUser();
+    } catch {
+      /* ignore */
+    }
+    toast.success('Logged out');
+  }
   const notifications = useDataStore((s) => s.notifications);
   const unread = notifications.filter((n) => !n.read).length;
   const markRead = useDataStore((s) => s.markNotificationsRead);
@@ -142,8 +152,8 @@ export function Navbar() {
                 <span className="max-w-[80px] truncate">{user.name}</span>
               </Link>
               <button
-                onClick={() => {
-                  logout();
+                onClick={async () => {
+                  await handleLogout();
                   navigate('/');
                 }}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/70 text-slate-500 hover:text-accent-500 dark:border-white/10 dark:bg-slate-900/60"
@@ -219,8 +229,8 @@ export function Navbar() {
                 <div className="mt-4 border-t border-slate-200/70 pt-4 dark:border-white/10">
                   {user ? (
                     <button
-                      onClick={() => {
-                        logout();
+                      onClick={async () => {
+                        await handleLogout();
                         setOpenMenu(false);
                         navigate('/');
                       }}

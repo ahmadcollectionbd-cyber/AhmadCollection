@@ -5,13 +5,24 @@ import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { formatBDT, formatDateTime } from '../lib/utils';
 import { useTranslation } from 'react-i18next';
+import { signOutUser } from '../lib/auth';
+import toast from 'react-hot-toast';
 
 export function Account() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const orders = useOrderStore((s) => s.orders);
   const navigate = useNavigate();
+
+  async function onLogout() {
+    try {
+      await signOutUser();
+    } catch {
+      /* ignore */
+    }
+    toast.success('Logged out');
+    navigate('/');
+  }
 
   if (!user) {
     return (
@@ -36,7 +47,7 @@ export function Account() {
             <div className="font-display text-lg font-bold">{user.name}</div>
             <div className="text-sm text-slate-500">{user.email}</div>
           </div>
-          <button onClick={() => { logout(); navigate('/'); }} className="ml-auto btn-outline text-xs">
+          <button onClick={onLogout} className="ml-auto btn-outline text-xs">
             <FiLogOut className="h-4 w-4" />
             {t('nav.logout')}
           </button>

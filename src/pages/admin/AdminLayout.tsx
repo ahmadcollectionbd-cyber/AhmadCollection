@@ -19,7 +19,9 @@ export function AdminLayout() {
     return (
       <div className="section py-16 text-center">
         <h1 className="heading text-2xl font-bold">Admin access required</h1>
-        <p className="mt-2 text-sm text-slate-500">Login with the demo admin account to access this section.</p>
+        <p className="mt-2 text-sm text-slate-500">
+          Sign in with the admin account (<b>ahmadcollection.bd@gmail.com</b>) to access this section.
+        </p>
         <Link to="/login" className="btn-primary mt-4 inline-flex">Login</Link>
       </div>
     );
