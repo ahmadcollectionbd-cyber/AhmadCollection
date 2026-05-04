@@ -25,7 +25,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: {
             uid: 'admin-demo',
-            email: 'admin@ahmadcollection.bd',
+            email: 'ahmadcollection.bd@gmail.com',
             name: 'Admin',
             role: 'admin',
           },
