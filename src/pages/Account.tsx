@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { FiLogOut, FiPackage, FiSearch, FiUser } from 'react-icons/fi';
+import { FiLogOut, FiPackage, FiSearch, FiTrash2, FiUser, FiX } from 'react-icons/fi';
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../stores/authStore';
@@ -13,6 +13,26 @@ import { OrderActions } from '../components/ui/OrderActions';
 import type { Order } from '../types';
 
 const PHONE_KEY = 'ac-account-phone';
+const HIDDEN_KEY_PREFIX = 'ac-hidden-orders-';
+
+function loadHidden(uid: string): string[] {
+  try {
+    const raw = localStorage.getItem(HIDDEN_KEY_PREFIX + uid);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHidden(uid: string, ids: string[]) {
+  try {
+    localStorage.setItem(HIDDEN_KEY_PREFIX + uid, JSON.stringify(ids));
+  } catch {
+    /* ignore quota */
+  }
+}
 
 export function Account() {
   const { t } = useTranslation();
@@ -24,8 +44,26 @@ export function Account() {
   const [phoneOrders, setPhoneOrders] = useState<Order[]>([]);
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneSearched, setPhoneSearched] = useState(false);
+  // Load hidden ids for the signed-in user. We compute the initial state
+  // synchronously from localStorage so we never have to setState in an
+  // effect (which the strict React-Compiler lint forbids).
+  const [hiddenByUser, setHiddenByUser] = useState<{ uid: string | null; ids: string[] }>(
+    () => ({ uid: user?.uid ?? null, ids: user ? loadHidden(user.uid) : [] }),
+  );
+  // When the signed-in user changes, re-hydrate the list during render. This
+  // is the React-recommended alternative to `useEffect(setState)` for state
+  // that derives from props.
+  if (hiddenByUser.uid !== (user?.uid ?? null)) {
+    setHiddenByUser({
+      uid: user?.uid ?? null,
+      ids: user ? loadHidden(user.uid) : [],
+    });
+  }
+  const hidden = hiddenByUser.ids;
+  const setHidden = (ids: string[]) => setHiddenByUser({ uid: user?.uid ?? null, ids });
+  const [showHidden, setShowHidden] = useState(false);
 
-  const myOrders = useMemo(() => {
+  const allOrders = useMemo(() => {
     if (!user) return [] as Order[];
     const own = orders.filter((o) => o.userId === user.uid);
     if (phoneOrders.length === 0) return own;
@@ -34,6 +72,54 @@ export function Account() {
       (a, b) => b.createdAt - a.createdAt,
     );
   }, [orders, phoneOrders, user]);
+
+  const hiddenSet = useMemo(() => new Set(hidden), [hidden]);
+  const visibleOrders = useMemo(
+    () => (showHidden ? allOrders : allOrders.filter((o) => !hiddenSet.has(o.id))),
+    [allOrders, hiddenSet, showHidden],
+  );
+  const hiddenCount = allOrders.filter((o) => hiddenSet.has(o.id)).length;
+
+  function hideOrder(id: string) {
+    if (!user) return;
+    const next = Array.from(new Set([...hidden, id]));
+    setHidden(next);
+    saveHidden(user.uid, next);
+    toast.success('Order hidden');
+  }
+
+  function unhideOrder(id: string) {
+    if (!user) return;
+    const next = hidden.filter((x) => x !== id);
+    setHidden(next);
+    saveHidden(user.uid, next);
+  }
+
+  function clearCompleted() {
+    if (!user) return;
+    const completedIds = allOrders
+      .filter((o) => o.status === 'delivered' || o.status === 'cancelled')
+      .map((o) => o.id);
+    if (completedIds.length === 0) {
+      toast('No completed orders to hide');
+      return;
+    }
+    const next = Array.from(new Set([...hidden, ...completedIds]));
+    setHidden(next);
+    saveHidden(user.uid, next);
+    toast.success(`Hid ${completedIds.length} completed orders`);
+  }
+
+  function clearAllHistory() {
+    if (!user) return;
+    if (!confirm('Hide all orders from your history? They will still exist on our side and you can show them again later.')) {
+      return;
+    }
+    const next = allOrders.map((o) => o.id);
+    setHidden(next);
+    saveHidden(user.uid, next);
+    toast.success('Order history cleared from this device');
+  }
 
   async function lookupByPhone(value: string) {
     const trimmed = value.trim();
@@ -131,32 +217,94 @@ export function Account() {
         </form>
 
         <div className="mt-6">
-          <h2 className="heading text-xl font-extrabold">My Orders</h2>
-          {myOrders.length === 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="heading text-xl font-extrabold">My Orders</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              {hiddenCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowHidden((v) => !v)}
+                  className="btn-outline text-xs"
+                >
+                  {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={clearCompleted}
+                className="btn-outline text-xs"
+                title="Hide delivered & cancelled orders"
+              >
+                <FiX className="h-3.5 w-3.5" />
+                Clear completed
+              </button>
+              <button
+                type="button"
+                onClick={clearAllHistory}
+                className="btn-outline text-xs"
+                title="Hide every order from this device's history"
+              >
+                <FiTrash2 className="h-3.5 w-3.5" />
+                Clear all
+              </button>
+            </div>
+          </div>
+
+          {visibleOrders.length === 0 ? (
             <div className="card mt-3 p-10 text-center text-sm text-slate-500">
               <FiPackage className="mx-auto h-10 w-10 text-slate-400" />
-              <p className="mt-3">No orders yet.</p>
-              <p className="mt-1 text-xs">Did you check out as a guest? Add the phone number you used above to find your orders.</p>
+              <p className="mt-3">
+                {allOrders.length === 0
+                  ? 'No orders yet.'
+                  : 'All your orders are hidden. Click "Show hidden" above to bring them back.'}
+              </p>
+              {allOrders.length === 0 && (
+                <p className="mt-1 text-xs">
+                  Did you check out as a guest? Add the phone number you used above to find your orders.
+                </p>
+              )}
               <Link to="/shop" className="btn-primary mt-3 inline-flex">Start shopping</Link>
             </div>
           ) : (
             <ul className="mt-3 space-y-2">
-              {myOrders.map((o) => (
-                <li key={o.id} className="card p-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div>
-                      <div className="font-mono text-sm font-bold">{o.shortId}</div>
-                      <div className="text-xs text-slate-500">{formatDateTime(o.createdAt)} · {o.items.length} items</div>
+              {visibleOrders.map((o) => {
+                const isHidden = hiddenSet.has(o.id);
+                return (
+                  <li key={o.id} className={`card p-4 ${isHidden ? 'opacity-70' : ''}`}>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div>
+                        <div className="font-mono text-sm font-bold">{o.shortId}</div>
+                        <div className="text-xs text-slate-500">{formatDateTime(o.createdAt)} · {o.items.length} items</div>
+                      </div>
+                      <div className="ml-auto flex flex-wrap items-center gap-2">
+                        <OrderStatusBadge status={o.status} />
+                        <div className="text-sm font-bold">{formatBDT(o.total)}</div>
+                        <Link to={`/order/${o.shortId}`} className="btn-outline text-xs">View</Link>
+                        {isHidden ? (
+                          <button
+                            type="button"
+                            onClick={() => unhideOrder(o.id)}
+                            className="btn-outline text-xs"
+                          >
+                            Unhide
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => hideOrder(o.id)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 dark:border-white/10 dark:text-slate-400 dark:hover:bg-rose-500/10"
+                            title="Hide this order from history"
+                            aria-label="Hide order"
+                          >
+                            <FiX className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="ml-auto flex items-center gap-3">
-                      <OrderStatusBadge status={o.status} />
-                      <div className="text-sm font-bold">{formatBDT(o.total)}</div>
-                      <Link to={`/order/${o.shortId}`} className="btn-outline text-xs">View</Link>
-                    </div>
-                  </div>
-                  <OrderActions order={o} />
-                </li>
-              ))}
+                    <OrderActions order={o} />
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

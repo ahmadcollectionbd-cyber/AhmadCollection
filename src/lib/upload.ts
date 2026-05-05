@@ -75,3 +75,11 @@ export async function uploadBannerImage(file: File): Promise<string> {
 export async function uploadCategoryImage(file: File): Promise<string> {
   return uploadToStorage(file, 'categories');
 }
+
+/** Generic upload used by the reusable `<ImageInput />` component. */
+export async function uploadAnyImage(
+  file: File,
+  folder: 'products' | 'banners' | 'categories' | 'settings' | 'misc' = 'misc',
+): Promise<string> {
+  return uploadToStorage(file, folder);
+}

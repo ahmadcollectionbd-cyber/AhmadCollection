@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiSave, FiSend, FiRefreshCw } from 'react-icons/fi';
+import { FiSave, FiSend, FiRefreshCw, FiPlus, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { saveSettings, DEFAULT_SETTINGS } from '../../lib/settings';
@@ -14,7 +14,8 @@ import {
   coupons as seedCoupons,
   products as seedProducts,
 } from '../../data/seed';
-import type { SiteSettings } from '../../types';
+import type { DeliveryDistrict, SiteSettings } from '../../types';
+import { ImageInput } from '../../components/ui/ImageInput';
 
 type FormState = SiteSettings;
 
@@ -230,9 +231,18 @@ export function AdminSettings() {
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Section title="Delivery charges" subtitle="Inside / outside Dhaka and free-delivery threshold.">
-          <Field label="Inside Dhaka (BDT)" type="number" {...bind('deliveryInside')} />
-          <Field label="Outside Dhaka (BDT)" type="number" {...bind('deliveryOutside')} />
+        <Section
+          title="Delivery charges"
+          subtitle="Per-district fees plus the inside/outside Dhaka fallback. Customers see the matching fee as soon as they type their city at checkout."
+        >
+          <div className="sm:col-span-2">
+            <DeliveryDistrictsEditor
+              value={form.deliveryDistricts ?? []}
+              onChange={(next) => setForm((p) => ({ ...p, deliveryDistricts: next }))}
+            />
+          </div>
+          <Field label="Inside Dhaka fallback (BDT)" type="number" {...bind('deliveryInside')} />
+          <Field label="Outside Dhaka fallback (BDT)" type="number" {...bind('deliveryOutside')} />
           <Field
             label="Free delivery above (BDT)"
             type="number"
@@ -377,7 +387,16 @@ export function AdminSettings() {
           <Field label="SEO description (EN)" {...bind('seoDescription')} />
           <Field label="SEO description (BN)" {...bind('seoDescriptionBn')} />
           <Field label="SEO keywords (comma separated)" {...bind('seoKeywords')} />
-          <Field label="Open Graph image URL" {...bind('ogImage')} />
+          <div className="sm:col-span-2">
+            <span className="label">Open Graph image (upload or paste URL)</span>
+            <div className="mt-1">
+              <ImageInput
+                value={form.ogImage ?? ''}
+                onChange={(url) => setForm((p) => ({ ...p, ogImage: url }))}
+                folder="settings"
+              />
+            </div>
+          </div>
         </Section>
       </div>
 
@@ -432,5 +451,97 @@ function Field({
       <input className="input mt-1" {...rest} />
       {help && <span className="mt-1 block text-[11px] text-slate-500">{help}</span>}
     </label>
+  );
+}
+
+/**
+ * Editable per-district delivery table. Each row has the English name, an
+ * optional Bengali name, and the BDT fee. Admin can add / remove rows; an
+ * empty list falls back to the inside / outside Dhaka fields below.
+ */
+function DeliveryDistrictsEditor({
+  value,
+  onChange,
+}: {
+  value: DeliveryDistrict[];
+  onChange: (v: DeliveryDistrict[]) => void;
+}) {
+  function update(idx: number, patch: Partial<DeliveryDistrict>) {
+    onChange(value.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
+  }
+  function add() {
+    onChange([...value, { name: 'New district', fee: 100 }]);
+  }
+  function remove(idx: number) {
+    onChange(value.filter((_, i) => i !== idx));
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-3 dark:border-white/10 dark:bg-slate-900/40">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+            Per-district delivery charges
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Customers see these fees instantly when their city matches.
+          </p>
+        </div>
+        <button type="button" onClick={add} className="btn-outline text-xs">
+          <FiPlus className="h-3.5 w-3.5" />
+          Add district
+        </button>
+      </div>
+
+      {value.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-300 p-3 text-center text-xs text-slate-500 dark:border-white/10">
+          No per-district overrides. Customers will see the fallback fees.
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          <div className="hidden grid-cols-[1.4fr_1.4fr_1fr_auto] gap-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:grid">
+            <span>District (EN)</span>
+            <span>District (BN, optional)</span>
+            <span>Fee (BDT)</span>
+            <span className="sr-only">Remove</span>
+          </div>
+          {value.map((d, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200/70 p-2 sm:grid-cols-[1.4fr_1.4fr_1fr_auto] sm:items-center sm:border-0 sm:p-0 dark:border-white/10"
+            >
+              <input
+                className="input"
+                placeholder="Khulna"
+                value={d.name}
+                onChange={(e) => update(idx, { name: e.target.value })}
+              />
+              <input
+                className="input"
+                placeholder="খুলনা"
+                value={d.nameBn ?? ''}
+                onChange={(e) => update(idx, { nameBn: e.target.value || undefined })}
+              />
+              <input
+                className="input"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={d.fee}
+                onChange={(e) => update(idx, { fee: Number(e.target.value || 0) })}
+              />
+              <button
+                type="button"
+                onClick={() => remove(idx)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
+                aria-label={`Remove ${d.name}`}
+              >
+                <FiTrash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

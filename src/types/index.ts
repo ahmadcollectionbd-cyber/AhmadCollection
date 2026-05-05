@@ -14,6 +14,16 @@ export type Theme = 'light' | 'dark';
 
 export type DeliveryZone = 'inside' | 'outside';
 
+export interface DeliveryDistrict {
+  /** District / city display name shown in the admin and matched against
+   *  the city the customer enters at checkout (case-insensitive). */
+  name: string;
+  /** Bengali display name (optional). */
+  nameBn?: string;
+  /** Per-district delivery fee in BDT. */
+  fee: number;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -195,10 +205,19 @@ export interface SiteSettings {
   bkashNumber: string;
   /** Personal Nagad number used for manual transfers. */
   nagadNumber: string;
-  /** Delivery charge inside Dhaka (BDT). */
+  /** Delivery charge inside Dhaka (BDT). Kept for backward compat — used as the
+   *  default "inside" zone if no per-district override matches. */
   deliveryInside: number;
-  /** Delivery charge outside Dhaka (BDT). */
+  /** Delivery charge outside Dhaka (BDT). Used as the fallback when no
+   *  per-district override matches. */
   deliveryOutside: number;
+  /**
+   * Optional per-district delivery charges. When the customer types a city
+   * that matches `name` (case-insensitive), this fee is used instead of the
+   * inside/outside fallback. Lets the admin charge a different rate for
+   * Khulna, Chattogram, Sylhet, etc. without code changes.
+   */
+  deliveryDistricts?: DeliveryDistrict[];
   /** Free delivery threshold (subtotal in BDT, 0 disables). */
   freeDeliveryAbove: number;
   /** Phone number that receives admin SMS alerts. */

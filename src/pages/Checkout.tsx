@@ -10,7 +10,7 @@ import { useDataStore } from '../stores/dataStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { computeShipping } from '../lib/settings';
+import { computeShipping, findDistrict } from '../lib/settings';
 import { queueOrderNotification } from '../lib/notifications';
 import { gaEvent, pixelEvent } from '../lib/pixel';
 import { formatBDT, generateOrderId } from '../lib/utils';
@@ -61,10 +61,19 @@ export function Checkout() {
       ? Math.round((subtotal * coupon.value) / 100)
       : coupon.value
     : 0;
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<CheckoutForm>({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: { name: user?.name || '', phone: '', address: '' },
+  });
+
+  // We `watch` the city so the visible shipping fee updates the moment the
+  // customer types a known district (e.g. "Khulna").
+  const watchedCity = watch('city');
   const shipping = useMemo(
-    () => computeShipping(subtotal, zone, settings),
-    [subtotal, zone, settings],
+    () => computeShipping(subtotal, zone, settings, watchedCity),
+    [subtotal, zone, settings, watchedCity],
   );
+  const districtMatch = findDistrict(settings, watchedCity);
   const total = Math.max(0, subtotal - discount + shipping);
 
   const cartCount = items.reduce((acc, it) => acc + it.quantity, 0);
@@ -78,11 +87,6 @@ export function Checkout() {
     });
     gaEvent('begin_checkout', { currency: 'BDT', value: total });
   }, [cartCount, total]);
-
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CheckoutForm>({
-    resolver: zodResolver(checkoutSchema),
-    defaultValues: { name: user?.name || '', phone: '', address: '' },
-  });
 
   if (items.length === 0) {
     return (
@@ -234,7 +238,19 @@ export function Checkout() {
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="label">{t('checkout.city')}</label>
-                  <input className="input mt-1" placeholder="Dhaka" {...register('city')} />
+                  <input
+                    className="input mt-1"
+                    list="checkout-districts"
+                    placeholder="Dhaka"
+                    {...register('city')}
+                  />
+                  <datalist id="checkout-districts">
+                    {(settings.deliveryDistricts ?? []).map((d) => (
+                      <option key={d.name} value={d.name}>
+                        {d.nameBn ? `${d.nameBn} — ${formatBDT(d.fee)}` : `${formatBDT(d.fee)}`}
+                      </option>
+                    ))}
+                  </datalist>
                 </div>
                 <div>
                   <label className="label">{t('checkout.area')}</label>
@@ -269,6 +285,12 @@ export function Checkout() {
                     </button>
                   ))}
                 </div>
+                {districtMatch && (
+                  <div className="mt-2 rounded-xl border border-brand-500/30 bg-brand-500/5 px-3 py-2 text-xs text-brand-700 dark:text-brand-300">
+                    <b>{districtMatch.name}</b>
+                    {districtMatch.nameBn ? ` — ${districtMatch.nameBn}` : ''}: delivery <b>{formatBDT(districtMatch.fee)}</b>.
+                  </div>
+                )}
                 {settings.freeDeliveryAbove > 0 && (
                   <p className="mt-2 text-[11px] text-slate-500">
                     Free delivery on orders above {formatBDT(settings.freeDeliveryAbove)}.
@@ -305,14 +327,43 @@ export function Checkout() {
                 ))}
               </div>
               {(paymentMethod === 'bkash' || paymentMethod === 'nagad') && (
-                <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800/40">
-                  <p className="text-slate-600 dark:text-slate-300">
-                    Send <b>{formatBDT(total)}</b> to{' '}
-                    <b>{paymentMethod === 'bkash' ? 'bKash' : 'Nagad'} {paymentNumber} (Personal)</b>.
-                    Then enter the transaction ID below.
+                <div className="mt-4 rounded-2xl border border-brand-500/30 bg-gradient-to-br from-white to-brand-50 p-4 text-sm shadow-sm dark:border-brand-500/40 dark:from-slate-900/60 dark:to-brand-500/10">
+                  <p className="text-slate-700 dark:text-slate-200">
+                    Send <span className="font-bold">{formatBDT(total)}</span> to:
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex h-8 items-center rounded-lg px-2.5 text-xs font-bold text-white ${
+                        paymentMethod === 'bkash'
+                          ? 'bg-gradient-to-br from-pink-500 to-pink-600'
+                          : 'bg-gradient-to-br from-orange-500 to-amber-600'
+                      }`}
+                    >
+                      {paymentMethod === 'bkash' ? 'bKash' : 'Nagad'} (Personal)
+                    </span>
+                    <span className="font-mono text-base font-bold tracking-wide">
+                      {paymentNumber}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                          navigator.clipboard.writeText(paymentNumber).then(
+                            () => toast.success('Number copied'),
+                            () => toast.error('Could not copy'),
+                          );
+                        }
+                      }}
+                      className="btn-outline px-2 py-1 text-[11px]"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    After sending, paste the transaction ID below so we can match the payment to your order.
                   </p>
                   <input
-                    className="input mt-3"
+                    className="input mt-2"
                     placeholder={t('checkout.paymentRef')}
                     {...register('paymentRef')}
                   />

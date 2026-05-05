@@ -1,7 +1,6 @@
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, Pagination, EffectFade } from 'swiper/modules';
+import { Autoplay, Pagination } from 'swiper/modules';
 import 'swiper/css';
-import 'swiper/css/effect-fade';
 import 'swiper/css/pagination';
 import { Link } from 'react-router-dom';
 import { useMemo } from 'react';
@@ -219,12 +218,11 @@ export function HeroSlider() {
   return (
     <section className="relative">
       <Swiper
-        modules={[Autoplay, Pagination, EffectFade]}
+        modules={[Autoplay, Pagination]}
         autoplay={{ delay: 6000, disableOnInteraction: false }}
-        effect="fade"
-        fadeEffect={{ crossFade: true }}
         pagination={{ clickable: true }}
         loop
+        autoHeight
         className="hero-swiper"
       >
         {banners.map((b, idx) => {
@@ -244,8 +242,19 @@ export function HeroSlider() {
         .hero-swiper {
           width: 100%;
         }
+        /* Smoothly animate the wrapper height when autoHeight reflows so
+           transitioning between slides of different aspect ratios doesn't
+           snap. */
+        .hero-swiper .swiper-wrapper {
+          transition-property: transform, height;
+        }
         .hero-swiper .swiper-pagination {
-          bottom: 16px !important;
+          bottom: 8px !important;
+        }
+        @media (min-width: 768px) {
+          .hero-swiper .swiper-pagination {
+            bottom: 16px !important;
+          }
         }
         .hero-swiper .swiper-pagination-bullet {
           background: rgba(15, 23, 42, 0.35);

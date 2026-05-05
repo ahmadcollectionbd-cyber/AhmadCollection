@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, type ToasterProps } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import { Layout } from './components/layout/Layout';
 import { Home } from './pages/Home';
@@ -94,19 +94,54 @@ function AppBoot() {
   return null;
 }
 
+/**
+ * Toasts on a phone are tiny if anchored to `top-right`; on small screens we
+ * center them under the safe-area inset so they're always readable and never
+ * overlap the right-side bell / cart icons. Falls back to the desktop
+ * top-right placement once the viewport is wide enough.
+ */
+function ResponsiveToaster() {
+  const [position, setPosition] = useState<ToasterProps['position']>(
+    typeof window !== 'undefined' && window.innerWidth < 640
+      ? 'top-center'
+      : 'top-right',
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 639px)');
+    const update = () => setPosition(mq.matches ? 'top-center' : 'top-right');
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  return (
+    <Toaster
+      position={position}
+      containerStyle={{
+        top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+      }}
+      toastOptions={{
+        className: 'glass-strong',
+        style: {
+          borderRadius: 12,
+          padding: '8px 14px',
+          fontSize: 14,
+          maxWidth: 'min(92vw, 420px)',
+        },
+      }}
+    />
+  );
+}
+
 function App() {
   return (
     <HelmetProvider>
       <BrowserRouter>
         <AppBoot />
         <ScrollToTop />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            className: 'glass-strong',
-            style: { borderRadius: 12, padding: '8px 14px', fontSize: 14 },
-          }}
-        />
+        <ResponsiveToaster />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route element={<Layout />}>

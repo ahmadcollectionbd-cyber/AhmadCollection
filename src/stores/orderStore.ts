@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import toast from 'react-hot-toast';
 import {
   addOrderDoc,
@@ -28,8 +27,17 @@ interface OrderState {
   byId: (id: string) => Order | undefined;
 }
 
+// IMPORTANT: orders are intentionally NOT persisted to localStorage. The
+// previous `persist({ name: 'ac-orders' })` wrapper made the user's view of
+// their order history start from a stale snapshot (often containing the
+// PREVIOUS signed-in user's data on a shared device, or pre-update statuses
+// after the admin already changed them). Customers reported "old history
+// flashes before the new one loads" and "admin status changes never reach my
+// account" — both are symptoms of the persisted snapshot fighting with the
+// Firestore subscription. We now rely entirely on the live snapshot from
+// `watchOrdersForUser` / `watchAllOrders`; the array is empty until the first
+// snapshot arrives.
 export const useOrderStore = create<OrderState>()(
-  persist(
     (set, get) => ({
       orders: [],
       set: (o) => set({ orders: o }),
@@ -112,8 +120,6 @@ export const useOrderStore = create<OrderState>()(
         ),
       byId: (id) => get().orders.find((o) => o.id === id),
     }),
-    { name: 'ac-orders' },
-  ),
 );
 
 let started = false;
@@ -124,6 +130,11 @@ export function startOrderSubscription() {
   const refresh = () => {
     unsub?.();
     unsub = null;
+    // Always wipe whatever was in the store before re-subscribing. Without
+    // this, switching from admin → customer (or one customer → another on a
+    // shared device) would leak the previous user's orders into the new
+    // user's UI for the moment between subscriptions.
+    useOrderStore.getState().set([]);
     if (!isFirebaseConfigured) return;
     const user = useAuthStore.getState().user;
     if (!user) return;
