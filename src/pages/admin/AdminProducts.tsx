@@ -269,12 +269,16 @@ export function AdminProducts() {
                         multiple
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => handleFiles(e.target.files)}
+                        onChange={(e) => {
+                          handleFiles(e.target.files);
+                          e.target.value = '';
+                        }}
                       />
                     </label>
                   </div>
                   <div className="flex gap-2">
                     <input
+                      id="image-url-input"
                       type="url"
                       placeholder="…or paste image URL"
                       className="input flex-1 text-xs"
@@ -289,6 +293,20 @@ export function AdminProducts() {
                         }
                       }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById('image-url-input') as HTMLInputElement | null;
+                        const v = el?.value.trim();
+                        if (v) {
+                          setImages((prev) => [...prev, v]);
+                          if (el) el.value = '';
+                        }
+                      }}
+                      className="btn-outline text-xs whitespace-nowrap"
+                    >
+                      Add URL
+                    </button>
                   </div>
                   <p className="text-[11px] text-slate-500">Drop image files or paste a URL and press Enter. First image is the cover.</p>
                 </div>
