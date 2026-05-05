@@ -42,23 +42,24 @@ const SLIDE_CONTENT: Record<string, SlideContent> = {
 const DEFAULT_CONTENT: SlideContent = SLIDE_CONTENT['b-1'];
 
 /**
- * Slide that shows the *full* uploaded image without any cropping.
+ * Full-width banner: shows the uploaded image at its natural aspect ratio,
+ * filling 100% of the viewport width so there is never any blank space
+ * on the sides. The container's height auto-adjusts to whatever the
+ * image's intrinsic aspect ratio dictates — exactly what you want for
+ * pre-composed marketing artwork that already has text and CTAs baked
+ * into the image.
  *
- * The image keeps its natural aspect ratio. We only force a max-height on
- * very tall portraits so the slider doesn't take over the entire viewport
- * on phones. Title/subtitle/CTA overlay is intentionally hidden — these
- * banners are expected to already contain text inside the image itself.
+ * Title/subtitle/CTA overlay is intentionally NOT rendered here — these
+ * banners are expected to carry their own copy inside the image.
  */
 function ContainSlide({ banner, eager }: { banner: Banner; eager: boolean }) {
   const slide = (
-    <div className="flex w-full items-center justify-center bg-gradient-soft dark:bg-slate-900">
-      <img
-        src={banner.image}
-        alt={banner.title}
-        loading={eager ? 'eager' : 'lazy'}
-        className="max-h-[60vh] w-full object-contain sm:max-h-[70vh]"
-      />
-    </div>
+    <img
+      src={banner.image}
+      alt={banner.title}
+      loading={eager ? 'eager' : 'lazy'}
+      className="block h-auto w-full"
+    />
   );
   if (banner.ctaHref) {
     return (

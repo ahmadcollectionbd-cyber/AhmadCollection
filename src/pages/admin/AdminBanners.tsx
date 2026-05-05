@@ -182,7 +182,7 @@ export function AdminBanners() {
                     <img
                       src={editing.image}
                       alt=""
-                      className="mx-auto block max-h-[60vh] w-full object-contain"
+                      className="block h-auto w-full"
                     />
                   ) : (
                     <img
