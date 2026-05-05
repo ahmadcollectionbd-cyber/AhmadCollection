@@ -1,6 +1,7 @@
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import type { SiteSettings } from '../types';
 import { db, isFirebaseConfigured } from './firebase';
+import { clearFirestoreError, reportFirestoreError } from '../stores/firestoreStatusStore';
 
 export const DEFAULT_SETTINGS: SiteSettings = {
   brandName: 'Ahmad Collection',
@@ -22,6 +23,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   adminEmail: 'ahmadcollection.bd@gmail.com',
   smsWebhookUrl: '',
   emailWebhookUrl: '',
+  emailJsServiceId: '',
+  emailJsTemplateId: '',
+  emailJsPublicKey: '',
   metaPixelId: '',
   gaMeasurementId: '',
   seoDescription:
@@ -47,14 +51,15 @@ export function subscribeToSettings(cb: (s: SiteSettings) => void): () => void {
   return onSnapshot(
     ref,
     (snap) => {
+      clearFirestoreError('settings');
       if (snap.exists()) {
         cb({ ...DEFAULT_SETTINGS, ...(snap.data() as Partial<SiteSettings>) });
       } else {
         cb(DEFAULT_SETTINGS);
       }
     },
-    () => {
-      // Permission errors / offline — fall back to defaults silently.
+    (error) => {
+      reportFirestoreError('settings', error);
       cb(DEFAULT_SETTINGS);
     },
   );

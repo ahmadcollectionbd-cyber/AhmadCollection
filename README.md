@@ -74,17 +74,39 @@ For a different project, set `VITE_FIREBASE_*` environment variables.
 ### SMS / Email integrations
 
 The app does not bundle a server. Order notifications are queued to Firestore
-(`notifications/`) and fanned out to webhook URLs you configure in Settings:
+(`notifications/`) and fanned out client-side. Three options:
 
-- **SMS**: Create a Zap / scenario that listens to a webhook and forwards the
-  payload to your favourite BD SMS gateway (SSL Wireless, BulkSMS BD, Mobireach).
-  Use the `payload.sms` string as the message body, `payload.adminPhone` as the
-  destination.
-- **Email**: Configure a webhook that uses the `payload.email.subject` and
-  `payload.email.html` fields to send an email to `payload.adminEmail`.
+#### Option A — EmailJS (recommended for email, zero-config)
+
+1. Sign up at https://www.emailjs.com (free 200 emails/month).
+2. Create an **Email Service** (Gmail / Outlook / SMTP).
+3. Create an **Email Template** with these variables in the body:
+   `{{to_email}}`, `{{subject}}`, `{{message}}`, `{{html}}`,
+   `{{from_name}}`, `{{reply_to}}`.
+4. Copy the Service ID, Template ID, and Public Key (Account → API keys).
+5. Paste them into `/admin/settings → EmailJS` and click **Send test email**.
+
+Once configured, every new order automatically sends an email to your
+`adminEmail` — no Zapier or backend required.
+
+#### Option B — Webhook (Zapier / Make / n8n)
+
+- Configure SMS / Email webhook URLs in `/admin/settings → Notification webhooks`.
+- Click **Test SMS webhook** / **Test Email webhook** to verify.
+- Build a scenario in Zapier / Make / n8n that listens to the webhook and
+  forwards `payload.sms` → BD SMS gateway and `payload.email` → email service.
+
+#### Option C — Both (belt-and-suspenders)
+
+Configure both EmailJS and webhooks; both fire on every order.
 
 This setup keeps the codebase fully static-deployable (Vercel) without a
 backend, while still giving you admin SMS + email alerts.
+
+### Hero banners / slides
+
+Edit slides at `/admin/banners`. You can upload images, set CTA buttons,
+re-order, hide/show. Slides are stored in Firestore `banners/`.
 
 ## Deployment
 

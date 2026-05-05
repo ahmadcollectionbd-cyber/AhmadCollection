@@ -1,6 +1,7 @@
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import type { Order, OrderNotification, SiteSettings } from '../types';
 import { db, isFirebaseConfigured } from './firebase';
+import { isEmailJsConfigured, sendEmailViaEmailJs } from './emailjs';
 
 interface QueueOptions {
   type: OrderNotification['type'];
@@ -156,8 +157,9 @@ function escapeHtml(s: string) {
 }
 
 async function fanout(settings: SiteSettings, payload: Record<string, unknown>) {
+  const useEmailJs = isEmailJsConfigured(settings);
   let smsOk = !settings.smsWebhookUrl;
-  let emailOk = !settings.emailWebhookUrl;
+  let emailOk = !settings.emailWebhookUrl && !useEmailJs;
   let error: string | undefined;
 
   const tasks: Promise<void>[] = [];
@@ -185,8 +187,41 @@ async function fanout(settings: SiteSettings, payload: Record<string, unknown>) 
     );
   }
 
+  // EmailJS: zero-config browser-direct email send (no backend / Zapier).
+  if (useEmailJs && settings.adminEmail) {
+    const email = (payload.email as { subject: string; html: string }) ?? {
+      subject: 'New order',
+      html: '',
+    };
+    tasks.push(
+      sendEmailViaEmailJs(settings, {
+        to_email: settings.adminEmail,
+        subject: email.subject,
+        message: stripHtml(email.html).slice(0, 4000),
+        html: email.html,
+        from_name: String(payload.brand ?? 'Store'),
+        reply_to: String(payload.customerEmail ?? settings.adminEmail),
+      }).then((res) => {
+        if (res.ok) {
+          emailOk = true;
+        } else if (res.error) {
+          error = (error ?? '') + (error ? ' | ' : '') + `emailjs: ${res.error}`;
+        }
+      }),
+    );
+  }
+
   await Promise.allSettled(tasks);
   return { smsOk, emailOk, error };
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 async function postWebhook(url: string, body: unknown) {

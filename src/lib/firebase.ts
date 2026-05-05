@@ -1,7 +1,7 @@
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAnalytics, isSupported as analyticsIsSupported, type Analytics } from 'firebase/analytics';
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { initializeFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 /**
@@ -45,7 +45,10 @@ let googleProvider: GoogleAuthProvider | null = null;
 if (isFirebaseConfigured) {
   app = getApps()[0] ?? initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app);
+  // `ignoreUndefinedProperties: true` lets us pass partial / optional fields
+  // (e.g. order.email, order.couponCode) without Firestore throwing on
+  // undefined values during setDoc/updateDoc.
+  db = initializeFirestore(app, { ignoreUndefinedProperties: true });
   storage = getStorage(app);
   googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({ prompt: 'select_account' });
