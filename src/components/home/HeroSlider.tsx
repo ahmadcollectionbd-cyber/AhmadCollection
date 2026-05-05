@@ -43,9 +43,9 @@ const DEFAULT_CONTENT: SlideContent = SLIDE_CONTENT['b-1'];
 /**
  * Full-width banner slide.
  *
- * Mobile: 1:1 aspect ratio, image cropped from right (`object-left`)
- * so the main subject stays visible. Text overlay is sized for thumb
- * reach with large tap-targets.
+ * Mobile: 1:1 aspect ratio, image center-cropped so the main subject
+ * stays visible. Text overlay is sized for thumb reach with large
+ * tap-targets.
  *
  * Desktop (md+): natural aspect ratio, full image visible.
  */
@@ -71,7 +71,7 @@ function ContainSlide({
         src={banner.image}
         alt={banner.title}
         loading={eager ? 'eager' : 'lazy'}
-        className="block w-full aspect-square object-cover object-left md:aspect-auto md:h-auto md:object-contain md:object-center"
+        className="block w-full aspect-square object-cover object-center md:aspect-auto md:h-auto md:object-contain md:object-center"
       />
       {hasOverlayContent && (
         <>
@@ -130,9 +130,8 @@ function ContainSlide({
 /**
  * Background-photo slide with bengali overlay.
  *
- * Mobile: 1:1 square crop, image anchored left so the subject stays
- * visible and the right edge is trimmed. Text sits near the bottom
- * with generous tap-target buttons.
+ * Mobile: 1:1 square crop, image center-cropped so the subject stays
+ * visible. Text sits near the bottom with generous tap-target buttons.
  *
  * Desktop (md+): fixed-height hero with object-cover.
  */
@@ -261,7 +260,7 @@ export function HeroSlider() {
           width: 24px;
         }
         .hero-slide-img {
-          object-position: left;
+          object-position: center;
         }
         @media (min-width: 768px) {
           .hero-slide-img {
