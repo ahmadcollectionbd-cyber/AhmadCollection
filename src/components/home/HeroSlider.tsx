@@ -21,11 +21,6 @@ const SLIDE_CONTENT: Record<string, SlideContent> = {
     subtitleBn: 'সুলভ মূল্যে বিশ্বস্ততার সাথে প্রিমিয়াম কোয়ালিটির প্রাকৃতিক পণ্য পৌঁছে যাক আপনার ঘরে।',
     ctaBn: 'এখনই কিনুন',
   },
-  'b-2': {
-    titleBn: ['খাঁটি সরিষার তেল', 'কাঠের ঘানিতে ভাঙানো'],
-    subtitleBn: '১০০% খাঁটি কোল্ড প্রেসড সরিষার তেল, কোনো ভেজাল নেই। সারাদেশে ডেলিভারি।',
-    ctaBn: 'এখনই অর্ডার করুন',
-  },
   'b-3': {
     titleBn: ['খাঁটি খেজুর গুড়', 'মাটির পাত্রে বানানো'],
     subtitleBn: 'গাছের খাঁটি রস থেকে তৈরি পাটালি গুড়, শীতের বিশেষ সংগ্রহ।',
@@ -123,8 +118,8 @@ export function HeroSlider() {
         })}
       </Swiper>
       <style>{`
-        .hero-swiper, .hero-swiper .swiper-wrapper, .hero-swiper .swiper-slide {
-          height: auto !important;
+        .hero-swiper {
+          width: 100%;
         }
         .hero-swiper .swiper-pagination {
           bottom: 20px !important;

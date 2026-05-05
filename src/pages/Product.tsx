@@ -9,6 +9,7 @@ import { useCartStore } from '../stores/cartStore';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLangStore } from '../stores/langStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { formatBDT, formatDate, callLink, whatsappLink } from '../lib/utils';
 import { ProductCard } from '../components/product/ProductCard';
 import { SEO } from '../components/seo/SEO';
@@ -28,6 +29,7 @@ export function Product() {
   const wished = useWishlistStore((s) => s.has);
   const user = useAuthStore((s) => s.user);
   const lang = useLangStore((s) => s.lang);
+  const settings = useSettingsStore((s) => s.settings);
 
   const product = useMemo(() => products.find((p) => p.slug === slug), [products, slug]);
   const [imageIdx, setImageIdx] = useState(0);
@@ -192,11 +194,11 @@ export function Product() {
             </div>
 
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              <a href={whatsappLink(wm)} target="_blank" rel="noreferrer" className="btn-outline" style={{ borderColor: '#25D36655', color: '#1ea552' }}>
+              <a href={whatsappLink(wm, settings.whatsappNumber)} target="_blank" rel="noreferrer" className="btn-outline" style={{ borderColor: '#25D36655', color: '#1ea552' }}>
                 <FaWhatsapp className="h-4 w-4" />
                 {t('product.whatsapp')}
               </a>
-              <a href={callLink()} className="btn-outline">
+              <a href={callLink(settings.contactPhone)} className="btn-outline">
                 <FiPhone className="h-4 w-4" />
                 {t('product.call')}
               </a>

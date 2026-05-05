@@ -17,9 +17,16 @@ import { formatBDT, generateOrderId } from '../lib/utils';
 import type { Order, PaymentMethod, DeliveryZone } from '../types';
 import { useTranslation } from 'react-i18next';
 
+const BD_PHONE_REGEX = /^(?:\+?880|0)?1[3-9]\d{8}$/;
+
 const checkoutSchema = z.object({
   name: z.string().min(2, 'Name required'),
-  phone: z.string().min(10, 'Valid phone required'),
+  phone: z
+    .string()
+    .trim()
+    .refine((val) => BD_PHONE_REGEX.test(val.replace(/[\s-]/g, '')), {
+      message: 'Enter a valid Bangladesh mobile number (e.g. 01712345678)',
+    }),
   email: z.string().email('Valid email required').optional().or(z.literal('')),
   address: z.string().min(5, 'Address required'),
   city: z.string().optional(),

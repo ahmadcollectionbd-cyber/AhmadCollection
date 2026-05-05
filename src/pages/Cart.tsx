@@ -5,6 +5,8 @@ import { FiShoppingCart, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../stores/cartStore';
 import { useDataStore } from '../stores/dataStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { computeShipping } from '../lib/settings';
 import { formatBDT } from '../lib/utils';
 import { useTranslation } from 'react-i18next';
 
@@ -15,6 +17,7 @@ export function Cart() {
   const setQty = useCartStore((s) => s.setQty);
   const subtotal = useCartStore((s) => s.subtotal());
   const coupons = useDataStore((s) => s.coupons);
+  const settings = useSettingsStore((s) => s.settings);
   const navigate = useNavigate();
   const [code, setCode] = useState('');
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -25,7 +28,7 @@ export function Cart() {
       ? Math.round((subtotal * coupon.value) / 100)
       : coupon.value
     : 0;
-  const shipping = subtotal === 0 ? 0 : subtotal >= 1500 ? 0 : 70;
+  const shipping = computeShipping(subtotal, 'inside', settings);
   const total = Math.max(0, subtotal - discount + shipping);
 
   function applyCoupon() {
