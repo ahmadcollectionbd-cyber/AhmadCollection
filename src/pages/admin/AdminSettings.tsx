@@ -237,10 +237,25 @@ export function AdminSettings() {
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Section
           title="Delivery charges"
-          subtitle="Inside / outside Dhaka shipping fees. Customers see these as soon as they pick a delivery zone at checkout."
+          subtitle={`Customers see "Inside ${form.deliveryCityName || 'Dhaka'}" / "Outside ${form.deliveryCityName || 'Dhaka'}" at checkout. Change the city name to match your shop's base location.`}
         >
-          <Field label="Inside Dhaka (BDT)" type="number" {...bind('deliveryInside')} />
-          <Field label="Outside Dhaka (BDT)" type="number" {...bind('deliveryOutside')} />
+          <Field
+            label="City name"
+            placeholder="Dhaka"
+            help="Shown on checkout — e.g. set to Khulna for an Inside Khulna / Outside Khulna split."
+            {...bind('deliveryCityName')}
+          />
+          <div className="hidden sm:block" aria-hidden="true" />
+          <Field
+            label={`Inside ${form.deliveryCityName || 'Dhaka'} (BDT)`}
+            type="number"
+            {...bind('deliveryInside')}
+          />
+          <Field
+            label={`Outside ${form.deliveryCityName || 'Dhaka'} (BDT)`}
+            type="number"
+            {...bind('deliveryOutside')}
+          />
           <Field
             label="Free delivery above (BDT)"
             type="number"

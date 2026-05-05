@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   supportEmail: 'ahmadcollection.bd@gmail.com',
   bkashNumber: '01914138238',
   nagadNumber: '01914138238',
+  deliveryCityName: 'Dhaka',
   deliveryInside: 70,
   deliveryOutside: 130,
   deliveryDistricts: [],
