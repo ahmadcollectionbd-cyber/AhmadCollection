@@ -17,7 +17,6 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 import { useOrderStore } from '../../stores/orderStore';
-import { FirestoreStatusBanner } from '../../components/admin/FirestoreStatusBanner';
 
 interface NavEntry {
   to: string;
@@ -172,7 +171,6 @@ export function AdminLayout() {
         </aside>
 
         <div className="min-w-0">
-          <FirestoreStatusBanner />
           <Outlet />
         </div>
       </div>
