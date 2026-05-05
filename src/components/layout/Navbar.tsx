@@ -68,6 +68,7 @@ export function Navbar() {
   const navActive = 'text-brand-600 dark:text-brand-300';
 
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
       <div className="hidden md:block border-b border-slate-200/70 bg-brand-500 text-white dark:border-white/10">
         <div className="section flex h-9 items-center justify-between text-xs">
@@ -254,6 +255,8 @@ export function Navbar() {
         </div>
       )}
 
+    </header>
+
       <AnimatePresence>
         {openMenu && (
           <motion.div
@@ -321,6 +324,6 @@ export function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-    </header>
+    </>
   );
 }
