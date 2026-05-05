@@ -18,6 +18,16 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   nagadNumber: '01914138238',
   deliveryInside: 70,
   deliveryOutside: 130,
+  deliveryDistricts: [
+    { name: 'Dhaka', nameBn: 'ঢাকা', fee: 70 },
+    { name: 'Khulna', nameBn: 'খুলনা', fee: 130 },
+    { name: 'Chattogram', nameBn: 'চট্টগ্রাম', fee: 130 },
+    { name: 'Sylhet', nameBn: 'সিলেট', fee: 150 },
+    { name: 'Rajshahi', nameBn: 'রাজশাহী', fee: 130 },
+    { name: 'Barishal', nameBn: 'বরিশাল', fee: 150 },
+    { name: 'Rangpur', nameBn: 'রংপুর', fee: 150 },
+    { name: 'Mymensingh', nameBn: 'ময়মনসিংহ', fee: 130 },
+  ],
   freeDeliveryAbove: 1500,
   adminSmsPhone: '01914138238',
   adminEmail: 'ahmadcollection.bd@gmail.com',
@@ -76,13 +86,42 @@ export async function saveSettings(patch: Partial<SiteSettings>): Promise<void> 
   await setDoc(ref, patch, { merge: true });
 }
 
-/** Compute shipping cost for an order. */
+/**
+ * Compute shipping cost for an order.
+ *
+ * Priority:
+ *  1. Per-district override (`settings.deliveryDistricts`) matched on `city`.
+ *  2. Inside / outside Dhaka fallback based on the chosen `zone`.
+ *  3. Free delivery if subtotal crosses the threshold.
+ */
 export function computeShipping(
   subtotal: number,
   zone: 'inside' | 'outside' | undefined,
   settings: SiteSettings,
+  city?: string,
 ): number {
   if (subtotal <= 0) return 0;
   if (settings.freeDeliveryAbove > 0 && subtotal >= settings.freeDeliveryAbove) return 0;
+
+  if (city && settings.deliveryDistricts && settings.deliveryDistricts.length) {
+    const lower = city.trim().toLowerCase();
+    const match = settings.deliveryDistricts.find(
+      (d) => d.name.toLowerCase() === lower || d.nameBn === city.trim(),
+    );
+    if (match) return match.fee;
+  }
+
   return zone === 'outside' ? settings.deliveryOutside : settings.deliveryInside;
+}
+
+/** Convenience: look up a district by name (case-insensitive). */
+export function findDistrict(
+  settings: SiteSettings,
+  city?: string,
+) {
+  if (!city || !settings.deliveryDistricts) return undefined;
+  const lower = city.trim().toLowerCase();
+  return settings.deliveryDistricts.find(
+    (d) => d.name.toLowerCase() === lower || d.nameBn === city.trim(),
+  );
 }

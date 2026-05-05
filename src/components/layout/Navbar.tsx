@@ -1,7 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { FiBell, FiHeart, FiLogOut, FiMail, FiMenu, FiPackage, FiPhone, FiShoppingCart, FiTruck, FiUser, FiX } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Logo } from '../ui/Logo';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { LangToggle } from '../ui/LangToggle';
@@ -49,6 +49,18 @@ export function Navbar() {
   const [openMenu, setOpenMenu] = useState(false);
   const [openNotif, setOpenNotif] = useState(false);
 
+  // Lock body scroll while the slide-in drawer is open so the page underneath
+  // doesn't jitter on iOS Safari and the drawer stays the only scrollable
+  // surface.
+  useEffect(() => {
+    if (!openMenu) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [openMenu]);
+
   const navItem =
     'rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:text-brand-600 dark:text-slate-200 dark:hover:text-brand-300';
   const navActive = 'text-brand-600 dark:text-brand-300';
@@ -76,7 +88,18 @@ export function Navbar() {
           </div>
         </div>
       </div>
-      <div className="section flex h-16 items-center gap-3">
+      <div className="section flex h-16 items-center gap-2 sm:gap-3">
+        {/* Mobile-only hamburger lives on the LEFT for thumb reach and parity with
+            most native shopping apps. The slide-in drawer also enters from the
+            left so the motion matches the button's position. */}
+        <button
+          type="button"
+          onClick={() => setOpenMenu(true)}
+          className="lg:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/70 bg-white/70 text-slate-700 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300"
+          aria-label="Open menu"
+        >
+          <FiMenu className="h-4 w-4" />
+        </button>
         <Logo />
         <nav className="ml-4 hidden lg:flex items-center gap-1">
           <NavLink to="/" end className={({ isActive }) => `${navItem} ${isActive ? navActive : ''}`}>
@@ -220,15 +243,6 @@ export function Navbar() {
               {t('nav.login')}
             </Link>
           )}
-
-          <button
-            type="button"
-            onClick={() => setOpenMenu(true)}
-            className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/70 text-slate-700 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300"
-            aria-label="Open menu"
-          >
-            <FiMenu className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
@@ -242,15 +256,15 @@ export function Navbar() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-[60] bg-slate-950/50 backdrop-blur-sm lg:hidden"
             onClick={() => setOpenMenu(false)}
           >
             <motion.aside
-              initial={{ x: '100%' }}
+              initial={{ x: '-100%' }}
               animate={{ x: 0 }}
-              exit={{ x: '100%' }}
+              exit={{ x: '-100%' }}
               transition={{ type: 'tween', duration: 0.25 }}
-              className="ml-auto h-full w-[80%] max-w-sm bg-white p-6 shadow-2xl dark:bg-slate-950"
+              className="flex h-full w-[85%] max-w-sm flex-col overflow-y-auto bg-white p-6 shadow-2xl dark:bg-slate-950"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">

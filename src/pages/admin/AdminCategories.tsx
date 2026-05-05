@@ -4,6 +4,7 @@ import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
 import { slugify } from '../../lib/utils';
+import { ImageInput } from '../../components/ui/ImageInput';
 
 export function AdminCategories() {
   const categories = useDataStore((s) => s.categories);
@@ -36,11 +37,16 @@ export function AdminCategories() {
       <p className="text-sm text-slate-500">{categories.length} categories</p>
 
       <div className="card mt-4 p-4">
-        <div className="grid gap-2 sm:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           <input className="input" placeholder="Name (English)" value={name} onChange={(e) => setName(e.target.value)} />
           <input className="input" placeholder="নাম (বাংলা)" value={nameBn} onChange={(e) => setNameBn(e.target.value)} />
-          <input className="input" placeholder="Image URL" value={image} onChange={(e) => setImage(e.target.value)} />
-          <button onClick={submit} className="btn-primary">
+          <div className="sm:col-span-2">
+            <label className="label mb-1 block text-xs uppercase tracking-wider text-slate-500">
+              Image (upload or paste URL)
+            </label>
+            <ImageInput value={image} onChange={setImage} folder="categories" />
+          </div>
+          <button onClick={submit} className="btn-primary sm:col-span-2 sm:justify-self-end">
             <FiPlus className="h-4 w-4" />
             {editing ? 'Update' : 'Add'}
           </button>
