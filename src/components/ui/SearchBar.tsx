@@ -36,7 +36,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
 
   return (
     <div ref={ref} className={`relative ${compact ? 'w-full' : 'w-full max-w-md'}`}>
-      <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      <FiSearch className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${compact ? 'text-slate-400' : 'text-brand-500'}`} />
       <input
         value={q}
         onChange={(e) => {
@@ -51,7 +51,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
           }
         }}
         placeholder={t('common.search')}
-        className="input pl-9 pr-9"
+        className={compact ? 'input pl-9 pr-9' : 'w-full rounded-full border-0 bg-white/95 px-4 py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 outline-none shadow-sm focus:ring-2 focus:ring-white/50'}
       />
       {q && (
         <button

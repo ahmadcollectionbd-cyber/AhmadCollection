@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useDataStore } from '../../stores/dataStore';
 import { useTranslation } from 'react-i18next';
 import { ProductCard } from '../product/ProductCard';
+import { FiArrowRight } from 'react-icons/fi';
 
 export function Bestsellers() {
   const { t } = useTranslation();
@@ -11,17 +12,15 @@ export function Bestsellers() {
   if (!products.length) return null;
 
   return (
-    <section className="section mt-16">
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <span className="badge-brand text-[10px] uppercase tracking-widest">Bestsellers</span>
-          <h2 className="heading mt-2 text-2xl font-extrabold sm:text-3xl">{t('home.bestsellers')}</h2>
-        </div>
-        <Link to="/shop" className="text-sm font-semibold text-brand-600 hover:underline dark:text-brand-300">
-          {t('home.viewAll')} →
+    <section className="section mt-12">
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="heading text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">{t('home.bestsellers')}</h2>
+        <Link to="/shop" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-300">
+          {t('home.viewAll')}
+          <FiArrowRight className="h-4 w-4" />
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
         {products.map((p, i) => (
           <ProductCard key={p.id} product={p} index={i} />
         ))}

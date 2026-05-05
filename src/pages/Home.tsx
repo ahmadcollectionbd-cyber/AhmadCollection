@@ -7,13 +7,13 @@ import { SEO } from '../components/seo/SEO';
 
 export function Home() {
   return (
-    <>
+    <div className="pb-8">
       <SEO path="/" />
       <HeroSlider />
       <Categories />
       <FeaturedProducts />
       <OfferBanner />
       <Bestsellers />
-    </>
+    </div>
   );
 }
