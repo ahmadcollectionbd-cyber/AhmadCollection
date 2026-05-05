@@ -42,12 +42,87 @@ const SLIDE_CONTENT: Record<string, SlideContent> = {
 const DEFAULT_CONTENT: SlideContent = SLIDE_CONTENT['b-1'];
 
 /**
- * Slide that shows the *full* uploaded image without any cropping.
+ * Professional split-layout hero slide:
+ *  - Desktop (≥ md): two-column grid — text + CTA on the left, full image on
+ *    the right. Image uses `object-contain` so nothing is cropped.
+ *  - Mobile: stacked — image on top, text + CTA underneath.
  *
- * The image keeps its natural aspect ratio. We only force a max-height on
- * very tall portraits so the slider doesn't take over the entire viewport
- * on phones. Title/subtitle/CTA overlay is intentionally hidden — these
- * banners are expected to already contain text inside the image itself.
+ * The banner's `title`, `subtitle` and `ctaLabel` from the admin panel are
+ * used verbatim. If a slide has a hand-crafted bengali version in
+ * `SLIDE_CONTENT`, that takes priority for the seed banners. New
+ * user-uploaded banners just use the strings the admin typed in.
+ */
+function SplitSlide({ banner, eager }: { banner: Banner; eager: boolean }) {
+  const preset = SLIDE_CONTENT[banner.id];
+  const titleLine1 = preset?.titleBn[0] ?? banner.title;
+  const titleLine2 = preset?.titleBn[1];
+  const subtitle = preset?.subtitleBn ?? banner.subtitle;
+  const ctaLabel = preset?.ctaBn ?? banner.ctaLabel ?? 'Shop now';
+
+  return (
+    <div className="relative bg-gradient-soft dark:bg-slate-900">
+      <div className="section grid items-center gap-6 py-8 md:grid-cols-2 md:gap-10 md:py-12 lg:gap-14 lg:py-16">
+        {/* Image column — order-1 on mobile so it sits ABOVE the text. */}
+        <div className="order-1 flex items-center justify-center md:order-2">
+          <img
+            src={banner.image}
+            alt={banner.title}
+            loading={eager ? 'eager' : 'lazy'}
+            className="block max-h-[40vh] w-full rounded-2xl object-contain shadow-soft md:max-h-[60vh]"
+          />
+        </div>
+
+        {/* Text + CTA column. */}
+        <motion.div
+          key={`${banner.id}-text`}
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+          className="order-2 max-w-xl text-center md:order-1 md:text-left"
+        >
+          <h1 className="font-bn text-2xl font-extrabold leading-tight text-slate-900 sm:text-3xl md:text-4xl lg:text-5xl dark:text-white">
+            {titleLine1}
+          </h1>
+          {titleLine2 && (
+            <h2 className="font-bn mt-1 text-xl font-bold leading-tight text-brand-700 sm:text-2xl md:text-3xl lg:text-4xl dark:text-brand-300">
+              {titleLine2}
+            </h2>
+          )}
+          {subtitle && (
+            <p className="font-bn mx-auto mt-4 max-w-md text-sm text-slate-600 sm:text-base md:mx-0 dark:text-slate-300">
+              {subtitle}
+            </p>
+          )}
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+            {banner.ctaHref && (
+              <Link
+                to={banner.ctaHref}
+                className="font-bn inline-flex items-center gap-2 rounded-full bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-xl"
+              >
+                <FiShoppingCart className="h-4 w-4" />
+                {ctaLabel}
+              </Link>
+            )}
+            <Link
+              to="/shop"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-slate-300 bg-white/70 px-5 py-2.5 text-sm font-semibold text-slate-700 backdrop-blur-sm transition hover:border-brand-500 hover:text-brand-600 dark:border-white/20 dark:bg-white/5 dark:text-slate-100"
+            >
+              Browse All
+              <FiArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Image-only slide for fully-composed artwork that already contains its
+ * own text, products and call-to-action baked in. We just render the
+ * uploaded image at its natural aspect ratio (no crop, no overlay)
+ * and wrap it in the link if the admin specified one.
  */
 function ContainSlide({ banner, eager }: { banner: Banner; eager: boolean }) {
   const slide = (
@@ -71,16 +146,10 @@ function ContainSlide({ banner, eager }: { banner: Banner; eager: boolean }) {
 }
 
 /**
- * Legacy "background photo + bengali overlay" slide. Kept for older banners
- * that don't have copy baked into the image.
+ * Legacy "background photo + bengali overlay" slide. Kept for banners
+ * explicitly opted into `fitMode === 'cover'`.
  */
-function CoverSlide({
-  banner,
-  index,
-}: {
-  banner: Banner;
-  index: number;
-}) {
+function CoverSlide({ banner, index }: { banner: Banner; index: number }) {
   const content = SLIDE_CONTENT[banner.id] ?? DEFAULT_CONTENT;
   return (
     <div className="relative w-full overflow-hidden min-h-[320px] sm:min-h-[380px] md:min-h-[440px] lg:min-h-[500px]">
@@ -154,13 +223,15 @@ export function HeroSlider() {
         className="hero-swiper"
       >
         {banners.map((b, idx) => {
-          const fit = b.fitMode ?? 'contain';
+          const fit = b.fitMode ?? 'split';
           return (
             <SwiperSlide key={b.id}>
               {fit === 'cover' ? (
                 <CoverSlide banner={b} index={idx} />
-              ) : (
+              ) : fit === 'contain' ? (
                 <ContainSlide banner={b} eager={idx === 0} />
+              ) : (
+                <SplitSlide banner={b} eager={idx === 0} />
               )}
             </SwiperSlide>
           );

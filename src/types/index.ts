@@ -133,13 +133,17 @@ export interface Banner {
   imagePosition?: ImagePosition;
   /**
    * How the banner image fills the slot:
-   *  - `contain` (default): show the FULL image at its natural aspect ratio
-   *    with no cropping. Use this for fully composed banners that already
-   *    contain text, products and background.
+   *  - `split` (default): two-column hero — title / subtitle / CTA on one
+   *    side, full uncropped image on the other (stacks on mobile). The
+   *    professional eCommerce default — keeps text readable and never
+   *    crops the artwork.
+   *  - `contain`: show the FULL image at its natural aspect ratio
+   *    with no overlay text. Use this for fully composed banners that
+   *    already contain text, products and background baked into the image.
    *  - `cover`: crop the image to fill a fixed slot (anchored by
    *    `imagePosition`) and overlay the slide title/subtitle/CTA on top.
    */
-  fitMode?: 'contain' | 'cover';
+  fitMode?: 'split' | 'contain' | 'cover';
   ctaLabel?: string;
   ctaHref?: string;
   order?: number;

@@ -24,7 +24,7 @@ const blankBanner = (): Banner => ({
   subtitle: '',
   image: '',
   imagePosition: 'top',
-  fitMode: 'contain',
+  fitMode: 'split',
   ctaLabel: '',
   ctaHref: '',
   active: true,
@@ -178,7 +178,28 @@ export function AdminBanners() {
               </div>
               {editing.image && (
                 <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900">
-                  {(editing.fitMode ?? 'contain') === 'contain' ? (
+                  {(editing.fitMode ?? 'split') === 'split' ? (
+                    <div className="grid items-center gap-3 p-3 md:grid-cols-2 md:gap-5">
+                      <div className="order-2 text-center md:order-1 md:text-left">
+                        <div className="font-bn text-base font-bold leading-tight text-slate-900 dark:text-white">
+                          {editing.title || 'Title preview'}
+                        </div>
+                        {editing.subtitle && (
+                          <div className="font-bn mt-1 text-xs text-slate-500">{editing.subtitle}</div>
+                        )}
+                        {editing.ctaLabel && (
+                          <div className="mt-2 inline-flex items-center rounded-full bg-brand-500 px-3 py-1 text-[11px] font-bold text-white">
+                            {editing.ctaLabel}
+                          </div>
+                        )}
+                      </div>
+                      <img
+                        src={editing.image}
+                        alt=""
+                        className="order-1 mx-auto block max-h-[200px] w-full rounded-lg object-contain md:order-2"
+                      />
+                    </div>
+                  ) : (editing.fitMode ?? 'split') === 'contain' ? (
                     <img
                       src={editing.image}
                       alt=""
@@ -202,27 +223,29 @@ export function AdminBanners() {
               <span className="label">Image fit</span>
               <select
                 className="input mt-1"
-                value={editing.fitMode ?? 'contain'}
+                value={editing.fitMode ?? 'split'}
                 onChange={(e) =>
                   setEditing({
                     ...editing,
-                    fitMode: e.target.value as 'contain' | 'cover',
+                    fitMode: e.target.value as 'split' | 'contain' | 'cover',
                   })
                 }
               >
-                <option value="contain">Show full image (no cropping)</option>
-                <option value="cover">Fill slot &amp; overlay text (may crop)</option>
+                <option value="split">Split (image + text side-by-side) — recommended</option>
+                <option value="contain">Image only (full artwork, no overlay)</option>
+                <option value="cover">Background photo with text overlaid (may crop)</option>
               </select>
               <p className="mt-1 text-[11px] text-slate-500">
-                Pick <code className="mx-1 rounded bg-slate-100 px-1">Show full image</code>
-                for fully composed banners that already include text and products. Use
-                <code className="mx-1 rounded bg-slate-100 px-1">Fill slot</code> only when
-                the image is a clean photo and you want the bengali title/subtitle/CTA
-                overlaid on top.
+                <strong>Split</strong> shows the full image on one side and your title /
+                subtitle / button on the other — best for product photos.
+                <strong className="ml-1">Image only</strong> is for fully-composed artwork
+                that already has text baked into the picture (no overlay added).
+                <strong className="ml-1">Background</strong> stretches the photo to fill the
+                slot and overlays the bengali copy on top — may crop.
               </p>
             </label>
 
-            {(editing.fitMode ?? 'contain') === 'cover' && (
+            {(editing.fitMode ?? 'split') === 'cover' && (
               <label className="block sm:col-span-2">
                 <span className="label">Image focus point (only for &ldquo;Fill slot&rdquo;)</span>
                 <select
@@ -299,15 +322,7 @@ export function AdminBanners() {
           <li key={b.id} className="card overflow-hidden">
             <div className="relative">
               {b.image ? (
-                (b.fitMode ?? 'contain') === 'contain' ? (
-                  <div className="flex w-full items-center justify-center bg-slate-100 dark:bg-slate-900">
-                    <img
-                      src={b.image}
-                      alt={b.title}
-                      className="max-h-[200px] w-full object-contain"
-                    />
-                  </div>
-                ) : (
+                (b.fitMode ?? 'split') === 'cover' ? (
                   <img
                     src={b.image}
                     alt={b.title}
@@ -316,6 +331,14 @@ export function AdminBanners() {
                       objectPosition: (b.imagePosition ?? 'top').replace('-', ' '),
                     }}
                   />
+                ) : (
+                  <div className="flex w-full items-center justify-center bg-slate-100 dark:bg-slate-900">
+                    <img
+                      src={b.image}
+                      alt={b.title}
+                      className="max-h-[200px] w-full object-contain"
+                    />
+                  </div>
                 )
               ) : (
                 <div className="aspect-[16/7] w-full bg-gradient-soft" />
