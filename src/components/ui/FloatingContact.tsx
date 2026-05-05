@@ -9,7 +9,7 @@ export function FloatingContact() {
   const [open, setOpen] = useState(false);
   const settings = useSettingsStore((s) => s.settings);
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
+    <div className="fixed bottom-20 right-5 z-30 flex flex-col items-end gap-3 md:bottom-5 md:z-40">
       <AnimatePresence>
         {open && (
           <>
