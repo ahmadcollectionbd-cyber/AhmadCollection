@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiArrowDown, FiArrowUp, FiEdit2, FiPlus, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
+import { FiArrowDown, FiArrowUp, FiEdit2, FiImage, FiPlus, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
 import { uploadBannerImage } from '../../lib/upload';
 import type { Banner, ImagePosition } from '../../types';
+import { PageHeader } from '../../components/admin/PageHeader';
 
 const IMAGE_POSITIONS: ImagePosition[] = [
   'top',
@@ -110,16 +111,18 @@ export function AdminBanners() {
   return (
     <>
       <Helmet><title>Banners — Admin</title></Helmet>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="heading text-2xl font-extrabold">Hero Banners / Slides</h1>
-          <p className="text-sm text-slate-500">{banners.length} slides</p>
-        </div>
-        <button onClick={startNew} className="btn-primary text-xs">
-          <FiPlus className="h-4 w-4" />
-          New banner
-        </button>
-      </div>
+      <PageHeader
+        icon={<FiImage />}
+        title="Hero Banners / Slides"
+        subtitle={`${banners.length} slides`}
+        accent="accent"
+        actions={
+          <button onClick={startNew} className="btn-primary text-xs">
+            <FiPlus className="h-4 w-4" />
+            New banner
+          </button>
+        }
+      />
 
       {editing && (
         <div className="card mt-4 p-4">

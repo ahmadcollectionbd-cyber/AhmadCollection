@@ -1,12 +1,13 @@
 import { Helmet } from 'react-helmet-async';
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { FiHeart, FiUser } from 'react-icons/fi';
+import { FiHeart, FiUser, FiUsers } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { useOrderStore } from '../../stores/orderStore';
 import { useDataStore } from '../../stores/dataStore';
 import { formatBDT, formatDate } from '../../lib/utils';
 import { watchAllUsers, type UserDoc } from '../../lib/firestore';
 import { isFirebaseConfigured } from '../../lib/firebase';
+import { PageHeader } from '../../components/admin/PageHeader';
 
 interface CustomerRow {
   key: string;
@@ -95,8 +96,12 @@ export function AdminCustomers() {
   return (
     <>
       <Helmet><title>Customers — Admin</title></Helmet>
-      <h1 className="heading text-2xl font-extrabold">Customers</h1>
-      <p className="text-sm text-slate-500">{list.length} total · click a row to see their wishlist</p>
+      <PageHeader
+        icon={<FiUsers />}
+        title="Customers"
+        subtitle={`${list.length} total · click a row to see their wishlist`}
+        accent="sky"
+      />
 
       <div className="card mt-4 overflow-hidden">
         <div className="overflow-x-auto">

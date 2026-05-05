@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiSave, FiSend, FiRefreshCw, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiSave, FiSend, FiRefreshCw, FiSettings } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { saveSettings, DEFAULT_SETTINGS } from '../../lib/settings';
@@ -14,8 +14,9 @@ import {
   coupons as seedCoupons,
   products as seedProducts,
 } from '../../data/seed';
-import type { DeliveryDistrict, SiteSettings } from '../../types';
+import type { SiteSettings } from '../../types';
 import { ImageInput } from '../../components/ui/ImageInput';
+import { PageHeader } from '../../components/admin/PageHeader';
 
 type FormState = SiteSettings;
 
@@ -49,7 +50,10 @@ export function AdminSettings() {
   async function onSave() {
     setBusy(true);
     try {
-      await saveSettings(form);
+      // The per-district override editor was retired in favour of the simpler
+      // inside / outside Dhaka model — wipe any stale overrides so existing
+      // Firestore documents stop applying them.
+      await saveSettings({ ...form, deliveryDistricts: [] });
       toast.success('Settings saved');
       // re-init analytics to pick up new IDs without a full reload
       initPixel(form.metaPixelId);
@@ -214,35 +218,29 @@ export function AdminSettings() {
   return (
     <>
       <Helmet><title>Settings — Admin</title></Helmet>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="heading text-2xl font-extrabold">Site Settings</h1>
-          <p className="text-sm text-slate-500">
-            Configure delivery charges, payment numbers, admin contacts, integrations and SEO.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={reset} className="btn-outline text-xs">Reset to defaults</button>
-          <button onClick={onSave} disabled={busy} className="btn-primary text-xs">
-            <FiSave className="h-4 w-4" />
-            {busy ? 'Saving…' : 'Save changes'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<FiSettings />}
+        title="Site Settings"
+        subtitle="Configure delivery charges, payment numbers, admin contacts, integrations and SEO."
+        accent="violet"
+        actions={
+          <>
+            <button onClick={reset} className="btn-outline text-xs">Reset to defaults</button>
+            <button onClick={onSave} disabled={busy} className="btn-primary text-xs">
+              <FiSave className="h-4 w-4" />
+              {busy ? 'Saving…' : 'Save changes'}
+            </button>
+          </>
+        }
+      />
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Section
           title="Delivery charges"
-          subtitle="Per-district fees plus the inside/outside Dhaka fallback. Customers see the matching fee as soon as they type their city at checkout."
+          subtitle="Inside / outside Dhaka shipping fees. Customers see these as soon as they pick a delivery zone at checkout."
         >
-          <div className="sm:col-span-2">
-            <DeliveryDistrictsEditor
-              value={form.deliveryDistricts ?? []}
-              onChange={(next) => setForm((p) => ({ ...p, deliveryDistricts: next }))}
-            />
-          </div>
-          <Field label="Inside Dhaka fallback (BDT)" type="number" {...bind('deliveryInside')} />
-          <Field label="Outside Dhaka fallback (BDT)" type="number" {...bind('deliveryOutside')} />
+          <Field label="Inside Dhaka (BDT)" type="number" {...bind('deliveryInside')} />
+          <Field label="Outside Dhaka (BDT)" type="number" {...bind('deliveryOutside')} />
           <Field
             label="Free delivery above (BDT)"
             type="number"
@@ -444,9 +442,18 @@ export function AdminSettings() {
 
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="card p-5">
+    <div className="card relative overflow-hidden p-5">
+      {/* Hairline gradient strip at the top — same brand→accent palette as
+          the public storefront so the admin form sections feel like part
+          of the same site. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-500 via-brand-400 to-accent-500"
+      />
       <div className="mb-3">
-        <h2 className="font-display text-sm font-bold uppercase tracking-wider">{title}</h2>
+        <h2 className="font-display text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
+          {title}
+        </h2>
         {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">{children}</div>
@@ -468,94 +475,4 @@ function Field({
   );
 }
 
-/**
- * Editable per-district delivery table. Each row has the English name, an
- * optional Bengali name, and the BDT fee. Admin can add / remove rows; an
- * empty list falls back to the inside / outside Dhaka fields below.
- */
-function DeliveryDistrictsEditor({
-  value,
-  onChange,
-}: {
-  value: DeliveryDistrict[];
-  onChange: (v: DeliveryDistrict[]) => void;
-}) {
-  function update(idx: number, patch: Partial<DeliveryDistrict>) {
-    onChange(value.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
-  }
-  function add() {
-    onChange([...value, { name: 'New district', fee: 100 }]);
-  }
-  function remove(idx: number) {
-    onChange(value.filter((_, i) => i !== idx));
-  }
 
-  return (
-    <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-3 dark:border-white/10 dark:bg-slate-900/40">
-      <div className="mb-2 flex items-center justify-between">
-        <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-            Per-district delivery charges
-          </div>
-          <p className="text-[11px] text-slate-500">
-            Customers see these fees instantly when their city matches.
-          </p>
-        </div>
-        <button type="button" onClick={add} className="btn-outline text-xs">
-          <FiPlus className="h-3.5 w-3.5" />
-          Add district
-        </button>
-      </div>
-
-      {value.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 p-3 text-center text-xs text-slate-500 dark:border-white/10">
-          No per-district overrides. Customers will see the fallback fees.
-        </div>
-      ) : (
-        <div className="grid gap-2">
-          <div className="hidden grid-cols-[1.4fr_1.4fr_1fr_auto] gap-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:grid">
-            <span>District (EN)</span>
-            <span>District (BN, optional)</span>
-            <span>Fee (BDT)</span>
-            <span className="sr-only">Remove</span>
-          </div>
-          {value.map((d, idx) => (
-            <div
-              key={idx}
-              className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200/70 p-2 sm:grid-cols-[1.4fr_1.4fr_1fr_auto] sm:items-center sm:border-0 sm:p-0 dark:border-white/10"
-            >
-              <input
-                className="input"
-                placeholder="Khulna"
-                value={d.name}
-                onChange={(e) => update(idx, { name: e.target.value })}
-              />
-              <input
-                className="input"
-                placeholder="খুলনা"
-                value={d.nameBn ?? ''}
-                onChange={(e) => update(idx, { nameBn: e.target.value || undefined })}
-              />
-              <input
-                className="input"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={d.fee}
-                onChange={(e) => update(idx, { fee: Number(e.target.value || 0) })}
-              />
-              <button
-                type="button"
-                onClick={() => remove(idx)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"
-                aria-label={`Remove ${d.name}`}
-              >
-                <FiTrash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

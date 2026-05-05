@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
-import { FiTrash2 } from 'react-icons/fi';
+import { FiShoppingBag, FiTrash2 } from 'react-icons/fi';
 import { useOrderStore } from '../../stores/orderStore';
+import { PageHeader } from '../../components/admin/PageHeader';
 import { formatBDT, formatDateTime } from '../../lib/utils';
 import type { OrderStatus } from '../../types';
 import { OrderTimeline } from '../../components/ui/OrderTimeline';
@@ -84,39 +85,41 @@ export function AdminOrders() {
   return (
     <>
       <Helmet><title>Orders — Admin</title></Helmet>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="heading text-2xl font-extrabold">Orders</h1>
-          <p className="text-sm text-slate-500">{orders.length} total · {selected.size} selected</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              bulkDelete(
-                orders.filter((o) => ARCHIVABLE.includes(o.status)).map((o) => o.id),
-                'archived orders',
-              )
-            }
-            disabled={busy || archivableCount === 0}
-            className="btn-outline text-xs disabled:opacity-50"
-            title="Delete every delivered / cancelled / returned order"
-          >
-            <FiTrash2 className="h-3.5 w-3.5" />
-            Clear archived ({archivableCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => bulkDelete(orders.map((o) => o.id), 'orders')}
-            disabled={busy || orders.length === 0}
-            className="btn-outline text-xs text-accent-600 disabled:opacity-50"
-            title="Permanently delete every order in the system"
-          >
-            <FiTrash2 className="h-3.5 w-3.5" />
-            Clear all history
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<FiShoppingBag />}
+        title="Orders"
+        subtitle={`${orders.length} total · ${selected.size} selected`}
+        accent="amber"
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() =>
+                bulkDelete(
+                  orders.filter((o) => ARCHIVABLE.includes(o.status)).map((o) => o.id),
+                  'archived orders',
+                )
+              }
+              disabled={busy || archivableCount === 0}
+              className="btn-outline text-xs disabled:opacity-50"
+              title="Delete every delivered / cancelled / returned order"
+            >
+              <FiTrash2 className="h-3.5 w-3.5" />
+              Clear archived ({archivableCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => bulkDelete(orders.map((o) => o.id), 'orders')}
+              disabled={busy || orders.length === 0}
+              className="btn-outline text-xs text-accent-600 disabled:opacity-50"
+              title="Permanently delete every order in the system"
+            >
+              <FiTrash2 className="h-3.5 w-3.5" />
+              Clear all history
+            </button>
+          </>
+        }
+      />
 
       {selected.size > 0 && (
         <div className="card mt-3 flex flex-wrap items-center justify-between gap-3 border-brand-500/40 bg-brand-500/5 p-3 text-sm">

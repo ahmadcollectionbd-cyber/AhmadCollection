@@ -1,8 +1,10 @@
 import { Helmet } from 'react-helmet-async';
 import { useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell, Pie, PieChart, Legend } from 'recharts';
+import { FiBarChart2 } from 'react-icons/fi';
 import { useOrderStore } from '../../stores/orderStore';
 import { formatBDT } from '../../lib/utils';
+import { PageHeader } from '../../components/admin/PageHeader';
 
 const COLORS = ['#0e5132', '#c81e1e', '#f59e0b', '#0ea5e9', '#8b5cf6'];
 
@@ -33,7 +35,12 @@ export function AdminAnalytics() {
   return (
     <>
       <Helmet><title>Analytics — Admin</title></Helmet>
-      <h1 className="heading text-2xl font-extrabold">Analytics</h1>
+      <PageHeader
+        icon={<FiBarChart2 />}
+        title="Analytics"
+        subtitle="Revenue, orders and category share at a glance."
+        accent="violet"
+      />
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <Stat label="Total revenue" value={formatBDT(totalRevenue)} />

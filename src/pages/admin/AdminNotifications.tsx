@@ -5,6 +5,7 @@ import { FiBell, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { useDataStore } from '../../stores/dataStore';
 import { formatDateTime } from '../../lib/utils';
 import type { Announcement } from '../../types';
+import { PageHeader } from '../../components/admin/PageHeader';
 
 const newId = () => `ann-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -66,17 +67,12 @@ export function AdminNotifications() {
   return (
     <>
       <Helmet><title>Notifications — Admin</title></Helmet>
-      <div className="flex items-center gap-3">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600">
-          <FiBell className="h-5 w-5" />
-        </span>
-        <div>
-          <h1 className="heading text-2xl font-extrabold">Notifications</h1>
-          <p className="text-sm text-slate-500">
-            Push announcements to every shopper's bell dropdown in realtime.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<FiBell />}
+        title="Notifications"
+        subtitle="Push announcements to every shopper's bell dropdown in realtime."
+        accent="amber"
+      />
 
       <form onSubmit={onPublish} className="card mt-6 grid gap-3 p-5">
         <div>
