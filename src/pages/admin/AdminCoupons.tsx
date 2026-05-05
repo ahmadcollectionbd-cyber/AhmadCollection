@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiPlus, FiTag, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
+import { PageHeader } from '../../components/admin/PageHeader';
 
 export function AdminCoupons() {
   const coupons = useDataStore((s) => s.coupons);
@@ -34,8 +35,12 @@ export function AdminCoupons() {
   return (
     <>
       <Helmet><title>Coupons — Admin</title></Helmet>
-      <h1 className="heading text-2xl font-extrabold">Coupons</h1>
-      <p className="text-sm text-slate-500">{coupons.length} active</p>
+      <PageHeader
+        icon={<FiTag />}
+        title="Coupons"
+        subtitle={`${coupons.length} active`}
+        accent="violet"
+      />
 
       <div className="card mt-4 p-4">
         <div className="grid gap-2 sm:grid-cols-5">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiEdit2, FiPlus, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
+import { FiBox, FiEdit2, FiPlus, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
 import { useForm, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,6 +9,7 @@ import { useDataStore } from '../../stores/dataStore';
 import type { Product } from '../../types';
 import { formatBDT, slugify } from '../../lib/utils';
 import { uploadProductImage } from '../../lib/upload';
+import { PageHeader } from '../../components/admin/PageHeader';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -133,19 +134,21 @@ export function AdminProducts() {
   return (
     <>
       <Helmet><title>Products — Admin</title></Helmet>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="heading text-2xl font-extrabold">Products</h1>
-          <p className="text-sm text-slate-500">{products.length} total</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" className="input h-9 w-44 py-1.5 text-xs" />
-          <button onClick={startCreate} className="btn-primary text-xs">
-            <FiPlus className="h-4 w-4" />
-            New
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<FiBox />}
+        title="Products"
+        subtitle={`${products.length} total`}
+        accent="brand"
+        actions={
+          <>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" className="input h-9 w-44 py-1.5 text-xs" />
+            <button onClick={startCreate} className="btn-primary text-xs">
+              <FiPlus className="h-4 w-4" />
+              New
+            </button>
+          </>
+        }
+      />
 
       <div className="card mt-4 overflow-hidden">
         <div className="overflow-x-auto">

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiEdit2, FiGrid, FiPlus, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
 import { slugify } from '../../lib/utils';
 import { ImageInput } from '../../components/ui/ImageInput';
+import { PageHeader } from '../../components/admin/PageHeader';
 
 export function AdminCategories() {
   const categories = useDataStore((s) => s.categories);
@@ -33,8 +34,12 @@ export function AdminCategories() {
   return (
     <>
       <Helmet><title>Categories — Admin</title></Helmet>
-      <h1 className="heading text-2xl font-extrabold">Categories</h1>
-      <p className="text-sm text-slate-500">{categories.length} categories</p>
+      <PageHeader
+        icon={<FiGrid />}
+        title="Categories"
+        subtitle={`${categories.length} categories`}
+        accent="sky"
+      />
 
       <div className="card mt-4 p-4">
         <div className="grid gap-3 sm:grid-cols-2">

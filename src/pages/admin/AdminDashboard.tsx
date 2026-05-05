@@ -1,8 +1,9 @@
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { FiArrowUpRight, FiBox, FiPackage, FiShoppingBag, FiTrendingUp } from 'react-icons/fi';
+import { FiArrowUpRight, FiBox, FiHome, FiPackage, FiShoppingBag, FiTrendingUp } from 'react-icons/fi';
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { useDataStore } from '../../stores/dataStore';
+import { PageHeader } from '../../components/admin/PageHeader';
 import { useOrderStore } from '../../stores/orderStore';
 import { formatBDT, formatDate } from '../../lib/utils';
 
@@ -41,8 +42,12 @@ export function AdminDashboard() {
     <>
       <Helmet><title>Admin Dashboard — Ahmad Collection</title></Helmet>
       <div>
-        <h1 className="heading text-2xl font-extrabold">Dashboard</h1>
-        <p className="text-sm text-slate-500">Welcome back. Here's a snapshot of your store.</p>
+        <PageHeader
+          icon={<FiHome />}
+          title="Dashboard"
+          subtitle="Welcome back. Here's a snapshot of your store."
+          accent="brand"
+        />
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Stat icon={<FiTrendingUp />} label="Revenue" value={formatBDT(totalRevenue)} accent="from-brand-500 to-brand-600" />
