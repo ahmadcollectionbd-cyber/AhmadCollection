@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -187,6 +188,59 @@ export async function updateOrderStatusDoc(
     statusHistory: history,
     updatedAt: Date.now(),
   });
+}
+
+/**
+ * Look up a single order by its short ID. Used by the public Track Order page
+ * so guests can find their order without signing in. Order short IDs are 8
+ * characters from a 31-char alphabet (~8e11 combinations) which makes them
+ * effectively unguessable. The doc ID is set to the same value at checkout
+ * (see Checkout.tsx) so this is a `get`, not a `list`, and Firestore rules
+ * can grant public access by short ID without leaking the full order
+ * collection to enumeration.
+ *
+ * Also falls back to a legacy `where('shortId', '==', ...)` query so orders
+ * created before the doc-id-equals-shortId migration remain reachable for
+ * authenticated users / admins.
+ */
+export async function findOrderByShortId(shortId: string): Promise<Order | null> {
+  if (!isFirebaseConfigured || !db) return null;
+  const trimmed = shortId.trim().toUpperCase();
+  if (!trimmed) return null;
+  try {
+    const direct = await getDoc(doc(db, 'orders', trimmed));
+    if (direct.exists()) {
+      return { id: direct.id, ...(direct.data() as Omit<Order, 'id'>) };
+    }
+  } catch {
+    /* fall through to legacy lookup */
+  }
+  try {
+    const q = query(collection(db, 'orders'), where('shortId', '==', trimmed));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const first = snap.docs[0];
+    return { id: first.id, ...(first.data() as Omit<Order, 'id'>) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * List all orders whose customer phone matches `phone` (digits only). Used to
+ * surface guest orders in a logged-in user's history when the userId field
+ * was never populated (e.g. they checked out without signing in).
+ */
+export async function findOrdersByPhone(phone: string): Promise<Order[]> {
+  if (!isFirebaseConfigured || !db) return [];
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 6) return [];
+  const q = query(
+    collection(db, 'orders'),
+    where('customer.phone', '==', phone),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Order, 'id'>) }));
 }
 
 export function watchOrdersForUser(uid: string, cb: (items: Order[]) => void) {

@@ -97,8 +97,12 @@ export function Checkout() {
     if ((paymentMethod === 'bkash' || paymentMethod === 'nagad') && !values.paymentRef?.trim()) {
       return toast.error('Please enter the transaction ID');
     }
-    const id = `o-${Date.now()}`;
+    // The Firestore document ID is intentionally the same as the unguessable
+    // short ID. That lets us expose Track Order to guests via a single
+    // `getDoc(doc('orders', shortId))` (a `get`, not a `list`) so the rule
+    // can be `allow get: if true` without exposing arbitrary docs.
     const shortId = generateOrderId();
+    const id = shortId;
     const order: Order = {
       id,
       shortId,

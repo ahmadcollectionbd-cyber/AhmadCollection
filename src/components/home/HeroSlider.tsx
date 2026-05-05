@@ -63,11 +63,13 @@ export function HeroSlider() {
           return (
             <SwiperSlide key={b.id}>
               <div className="relative w-full overflow-hidden min-h-[320px] sm:min-h-[380px] md:min-h-[440px] lg:min-h-[500px]">
-                {/* Full-width background image */}
+                {/* Full-width background image — anchored to the top by
+                    default so portraits / faces don't get their heads cropped. */}
                 <img
                   src={b.image}
                   alt={b.title}
-                  className="absolute inset-0 h-full w-full object-cover object-center"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  style={{ objectPosition: (b.imagePosition ?? 'top').replace('-', ' ') }}
                   loading={idx === 0 ? 'eager' : 'lazy'}
                 />
                 {/* Dark overlay for text readability */}

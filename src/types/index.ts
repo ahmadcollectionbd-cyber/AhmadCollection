@@ -110,11 +110,28 @@ export interface Coupon {
   usageLimit?: number;
 }
 
+export type ImagePosition =
+  | 'top'
+  | 'center'
+  | 'bottom'
+  | 'left'
+  | 'right'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right';
+
 export interface Banner {
   id: string;
   title: string;
   subtitle?: string;
   image: string;
+  /**
+   * CSS object-position for the background image. Useful for portraits where
+   * the default `center` cropping would chop off the subject's head.
+   * Defaults to `top` so faces stay visible.
+   */
+  imagePosition?: ImagePosition;
   ctaLabel?: string;
   ctaHref?: string;
   order?: number;

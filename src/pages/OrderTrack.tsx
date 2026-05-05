@@ -3,16 +3,39 @@ import { Helmet } from 'react-helmet-async';
 import { FiSearch } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { useOrderStore } from '../stores/orderStore';
+import { findOrderByShortId } from '../lib/firestore';
 import { formatBDT, formatDateTime } from '../lib/utils';
 import { OrderTimeline } from '../components/ui/OrderTimeline';
 import { OrderActions } from '../components/ui/OrderActions';
 import { SafeImage } from '../components/ui/SafeImage';
+import type { Order } from '../types';
 
 export function OrderTrack() {
   const { t } = useTranslation();
   const [id, setId] = useState('');
   const [searched, setSearched] = useState(false);
-  const order = useOrderStore((s) => s.byShortId(id));
+  const [loading, setLoading] = useState(false);
+  const [remoteOrder, setRemoteOrder] = useState<Order | null>(null);
+  const localOrder = useOrderStore((s) => s.byShortId(id));
+  const order = localOrder ?? remoteOrder;
+
+  async function onSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setSearched(true);
+    setRemoteOrder(null);
+    if (!id.trim()) return;
+    // Local-store hit covers the just-placed-on-this-device case instantly.
+    // Otherwise fall back to a public Firestore lookup so guests / different
+    // devices can still track.
+    if (useOrderStore.getState().byShortId(id)) return;
+    setLoading(true);
+    try {
+      const found = await findOrderByShortId(id);
+      setRemoteOrder(found);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <>
@@ -22,10 +45,7 @@ export function OrderTrack() {
         <p className="text-sm text-slate-500">Enter the Order ID we sent you to see live status.</p>
 
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSearched(true);
-          }}
+          onSubmit={onSearch}
           className="card mt-6 flex gap-2 p-3"
         >
           <div className="relative flex-1">
@@ -37,12 +57,16 @@ export function OrderTrack() {
               className="input pl-9 font-mono uppercase tracking-wider"
             />
           </div>
-          <button type="submit" className="btn-primary text-xs">Track</button>
+          <button type="submit" disabled={loading} className="btn-primary text-xs">
+            {loading ? 'Searching…' : 'Track'}
+          </button>
         </form>
 
         {searched && (
           <div className="mt-6">
-            {!order ? (
+            {loading ? (
+              <div className="card p-10 text-center text-sm text-slate-500">Searching…</div>
+            ) : !order ? (
               <div className="card p-10 text-center text-sm text-slate-500">{t('order.notFound')}</div>
             ) : (
               <div className="card p-6">
