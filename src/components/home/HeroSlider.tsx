@@ -81,7 +81,7 @@ function ContainSlide({
       />
       {hasOverlayContent && (
         <>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/40 via-black/15 to-transparent sm:from-black/55 sm:via-black/25 md:from-black/70 md:via-black/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent sm:from-black/55 sm:via-black/25 md:from-black/70 md:via-black/35" />
           <div className="absolute inset-0 flex items-center">
             <div className="section relative z-10 w-full">
               <motion.div
@@ -92,12 +92,12 @@ function ContainSlide({
                 className="max-w-md sm:max-w-lg"
               >
                 {titleLine1 && (
-                  <h1 className="font-bn text-xl font-extrabold leading-tight text-white drop-shadow-lg sm:text-2xl md:text-4xl lg:text-5xl">
+                  <h1 className="font-bn text-2xl font-extrabold leading-tight text-white drop-shadow-lg sm:text-2xl md:text-4xl lg:text-5xl">
                     {titleLine1}
                   </h1>
                 )}
                 {titleLine2 && (
-                  <h2 className="font-bn mt-1 text-lg font-bold leading-tight text-white/90 drop-shadow-md sm:text-xl md:text-3xl lg:text-4xl">
+                  <h2 className="font-bn mt-1 text-xl font-bold leading-tight text-white/90 drop-shadow-md sm:text-xl md:text-3xl lg:text-4xl">
                     {titleLine2}
                   </h2>
                 )}
@@ -162,7 +162,7 @@ function CoverSlide({
         style={{ objectPosition }}
         loading={index === 0 ? 'eager' : 'lazy'}
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/40 via-black/15 to-transparent md:from-black/70 md:via-black/40" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent md:from-black/70 md:via-black/40" />
       <div className="absolute inset-0 z-10 flex items-center md:relative">
        <div className="section flex w-full items-center py-6 sm:py-10 md:py-20 lg:py-24">
         <motion.div

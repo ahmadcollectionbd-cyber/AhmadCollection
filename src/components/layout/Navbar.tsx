@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { FiBell, FiHeart, FiLogOut, FiMail, FiMenu, FiPackage, FiPhone, FiShoppingCart, FiTruck, FiUser, FiX } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 import { useEffect, useState } from 'react';
@@ -48,6 +48,8 @@ export function Navbar() {
   const markRead = useDataStore((s) => s.markNotificationsRead);
   const [openMenu, setOpenMenu] = useState(false);
   const [openNotif, setOpenNotif] = useState(false);
+  const { pathname } = useLocation();
+  const showMobileSearch = pathname === '/' || pathname.startsWith('/shop') || pathname.startsWith('/c/');
 
   // Lock body scroll while the slide-in drawer is open so the page underneath
   // doesn't jitter on iOS Safari and the drawer stays the only scrollable
@@ -149,7 +151,7 @@ export function Navbar() {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 6 }}
-                  className="absolute right-0 top-[110%] z-50 w-80 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/95 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95"
+                  className="absolute right-0 top-[110%] z-50 w-[calc(100vw-2rem)] max-w-80 overflow-hidden rounded-2xl border border-slate-200/70 bg-white/95 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95 sm:w-80"
                 >
                   <div className="border-b border-slate-200/70 px-4 py-2 text-sm font-semibold dark:border-white/10">
                     Notifications
@@ -190,7 +192,7 @@ export function Navbar() {
 
           <Link
             to="/wishlist"
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/70 text-slate-700 backdrop-blur transition hover:border-brand-500/40 hover:text-brand-600 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:text-brand-300"
+            className="relative hidden md:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/70 text-slate-700 backdrop-blur transition hover:border-brand-500/40 hover:text-brand-600 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:text-brand-300"
             aria-label="Wishlist"
           >
             <FiHeart className="h-4 w-4" />
@@ -203,7 +205,7 @@ export function Navbar() {
 
           <Link
             to="/cart"
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/70 text-slate-700 backdrop-blur transition hover:border-brand-500/40 hover:text-brand-600 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:text-brand-300"
+            className="relative hidden md:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/70 text-slate-700 backdrop-blur transition hover:border-brand-500/40 hover:text-brand-600 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:text-brand-300"
             aria-label="Cart"
           >
             <FiShoppingCart className="h-4 w-4" />
@@ -246,9 +248,11 @@ export function Navbar() {
         </div>
       </div>
 
-      <div className="md:hidden border-t border-slate-200/70 px-4 py-2 dark:border-white/10">
-        <SearchBar compact />
-      </div>
+      {showMobileSearch && (
+        <div className="md:hidden border-t border-slate-200/70 px-4 py-2 dark:border-white/10">
+          <SearchBar compact />
+        </div>
+      )}
 
       <AnimatePresence>
         {openMenu && (

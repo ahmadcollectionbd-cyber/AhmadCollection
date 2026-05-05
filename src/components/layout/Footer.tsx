@@ -110,7 +110,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-slate-200/70 dark:border-white/10">
-        <div className="section flex flex-wrap items-center justify-between gap-3 py-5 text-xs text-slate-500">
+        <div className="section flex flex-wrap items-center justify-between gap-3 py-5 pb-24 text-xs text-slate-500 md:pb-5">
           <div>© {new Date().getFullYear()} {settings.brandName}. {t('footer.rights', 'All rights reserved.')}</div>
           <div className="flex items-center gap-2">
             <span className="rounded-lg bg-pink-500/10 px-2.5 py-1 font-bold text-pink-700 dark:bg-pink-500/20 dark:text-pink-200">bKash</span>
