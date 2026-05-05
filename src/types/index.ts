@@ -155,6 +155,21 @@ export interface NotificationItem {
   createdAt: number;
 }
 
+/**
+ * A notification authored by an admin and broadcast to every user via
+ * Firestore. Stored in the `announcements/` collection so it can be
+ * read publicly without auth, while only admins can write.
+ */
+export interface Announcement {
+  id: string;
+  title: string;
+  body?: string;
+  href?: string;
+  /** Whether the announcement is currently visible to shoppers. */
+  active: boolean;
+  createdAt: number;
+}
+
 export interface UserProfile {
   uid: string;
   email?: string | null;

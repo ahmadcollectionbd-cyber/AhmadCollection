@@ -9,15 +9,18 @@ import {
 } from '../data/seed';
 import {
   addReviewDoc,
+  deleteAnnouncement as deleteAnnouncementDoc,
   deleteBanner as deleteBannerDoc,
   deleteCategory as deleteCategoryDoc,
   deleteCoupon as deleteCouponDoc,
   deleteProduct as deleteProductDoc,
   seedDefaultData,
+  upsertAnnouncement as upsertAnnouncementDoc,
   upsertBanner as upsertBannerDoc,
   upsertCategory as upsertCategoryDoc,
   upsertCoupon as upsertCouponDoc,
   upsertProduct as upsertProductDoc,
+  watchAnnouncements,
   watchBanners,
   watchCategories,
   watchCoupons,
@@ -25,7 +28,7 @@ import {
   watchReviews,
 } from '../lib/firestore';
 import { isFirebaseConfigured } from '../lib/firebase';
-import type { Banner, Category, Coupon, NotificationItem, Product, Review } from '../types';
+import type { Announcement, Banner, Category, Coupon, NotificationItem, Product, Review } from '../types';
 
 interface DataState {
   products: Product[];
@@ -33,7 +36,12 @@ interface DataState {
   banners: Banner[];
   coupons: Coupon[];
   reviews: Review[];
+  /** Local in-app notifications (welcome message etc.). */
   notifications: NotificationItem[];
+  /** Admin-authored announcements broadcast via Firestore. */
+  announcements: Announcement[];
+  /** Per-announcement read receipts keyed by announcement id. */
+  readAnnouncementIds: string[];
   /** True once at least one realtime snapshot has arrived. */
   ready: boolean;
 
@@ -64,6 +72,11 @@ interface DataState {
   pushNotification: (n: NotificationItem) => void;
   markNotificationsRead: () => void;
 
+  setAnnouncements: (a: Announcement[]) => void;
+  addAnnouncement: (a: Announcement) => Promise<void>;
+  updateAnnouncement: (id: string, patch: Partial<Announcement>) => Promise<void>;
+  removeAnnouncement: (id: string) => Promise<void>;
+
   reset: () => void;
 }
 
@@ -84,6 +97,8 @@ export const useDataStore = create<DataState>()(
           createdAt: Date.now(),
         },
       ],
+      announcements: [],
+      readAnnouncementIds: [],
       ready: false,
 
       setProducts: (p) => set({ products: p }),
@@ -193,7 +208,33 @@ export const useDataStore = create<DataState>()(
       markNotificationsRead: () =>
         set({
           notifications: get().notifications.map((n) => ({ ...n, read: true })),
+          // Also mark every currently-visible announcement as read.
+          readAnnouncementIds: Array.from(
+            new Set([
+              ...get().readAnnouncementIds,
+              ...get().announcements.map((a) => a.id),
+            ]),
+          ),
         }),
+
+      setAnnouncements: (a) => set({ announcements: a }),
+      addAnnouncement: async (a) => {
+        set({ announcements: [a, ...get().announcements] });
+        if (isFirebaseConfigured) await upsertAnnouncementDoc(a);
+      },
+      updateAnnouncement: async (id, patch) => {
+        set({
+          announcements: get().announcements.map((a) =>
+            a.id === id ? { ...a, ...patch } : a,
+          ),
+        });
+        const merged = get().announcements.find((a) => a.id === id);
+        if (merged && isFirebaseConfigured) await upsertAnnouncementDoc(merged);
+      },
+      removeAnnouncement: async (id) => {
+        set({ announcements: get().announcements.filter((a) => a.id !== id) });
+        if (isFirebaseConfigured) await deleteAnnouncementDoc(id);
+      },
 
       reset: () =>
         set({
@@ -244,6 +285,7 @@ export function startDataSubscriptions() {
       if (items.length) useDataStore.getState().setCoupons(items);
     }),
     watchReviews((items) => useDataStore.getState().setReviews(items)),
+    watchAnnouncements((items) => useDataStore.getState().setAnnouncements(items)),
   );
 }
 

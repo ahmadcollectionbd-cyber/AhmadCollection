@@ -16,6 +16,7 @@ import {
   type QuerySnapshot,
 } from 'firebase/firestore';
 import type {
+  Announcement,
   Banner,
   Category,
   Coupon,
@@ -23,6 +24,7 @@ import type {
   OrderStatus,
   Product,
   Review,
+  UserProfile,
 } from '../types';
 import { db, isFirebaseConfigured } from './firebase';
 import { clearFirestoreError, reportFirestoreError } from '../stores/firestoreStatusStore';
@@ -170,6 +172,74 @@ export function watchReviews(cb: (items: Review[]) => void) {
   );
 }
 
+/* ─────────────────────────  Announcements  ───────────────────────── */
+
+export function watchAnnouncements(cb: (items: Announcement[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  return onSnapshot(
+    collection(db, 'announcements'),
+    (snap) => {
+      clearFirestoreError('announcements');
+      cb(unwrap<Omit<Announcement, 'id'>>(snap) as Announcement[]);
+    },
+    (error) => reportFirestoreError('announcements', error),
+  );
+}
+
+export async function upsertAnnouncement(a: Announcement): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await setDoc(doc(db, 'announcements', a.id), a, { merge: true });
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await deleteDoc(doc(db, 'announcements', id));
+}
+
+/* ─────────────────────────  Users / Wishlists  ───────────────────────── */
+
+export type UserDoc = UserProfile & { wishlist?: string[] };
+
+/** Persist the signed-in user's wishlist on their profile doc. */
+export async function syncUserWishlist(uid: string, ids: string[]): Promise<void> {
+  if (!db) return;
+  await setDoc(
+    doc(db, 'users', uid),
+    { wishlist: Array.from(new Set(ids)), updatedAt: Date.now() },
+    { merge: true },
+  );
+}
+
+/** Subscribe to a user's wishlist for live updates across devices. */
+export function watchUserWishlist(uid: string, cb: (ids: string[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  return onSnapshot(
+    doc(db, 'users', uid),
+    (snap) => {
+      const data = snap.data() as UserDoc | undefined;
+      cb(Array.isArray(data?.wishlist) ? data!.wishlist : []);
+    },
+    (error) => reportFirestoreError('users.wishlist', error),
+  );
+}
+
+/**
+ * Admin-only: stream every user document so the customers admin page
+ * can render avatars, contact info, and wishlist contents alongside
+ * the order-derived stats.
+ */
+export function watchAllUsers(cb: (items: UserDoc[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  return onSnapshot(
+    collection(db, 'users'),
+    (snap) => {
+      clearFirestoreError('users');
+      cb(snap.docs.map((d) => ({ uid: d.id, ...(d.data() as Omit<UserDoc, 'uid'>) })));
+    },
+    (error) => reportFirestoreError('users', error),
+  );
+}
+
 /* ─────────────────────────  Orders  ───────────────────────── */
 
 export async function addOrderDoc(o: Order): Promise<void> {
@@ -188,6 +258,12 @@ export async function updateOrderStatusDoc(
     statusHistory: history,
     updatedAt: Date.now(),
   });
+}
+
+/** Admin-only: permanently delete an order document. */
+export async function deleteOrderDoc(id: string): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await deleteDoc(doc(db, 'orders', id));
 }
 
 /**
@@ -245,16 +321,21 @@ export async function findOrdersByPhone(phone: string): Promise<Order[]> {
 
 export function watchOrdersForUser(uid: string, cb: (items: Order[]) => void) {
   if (!isFirebaseConfigured || !db) return () => {};
-  const q = query(
-    collection(db, 'orders'),
-    where('userId', '==', uid),
-    orderBy('createdAt', 'desc'),
-  );
+  // We deliberately omit `orderBy('createdAt', 'desc')` here: combining a
+  // `where('userId', ...)` filter with an `orderBy` requires a composite
+  // Firestore index. Without it the subscription fails silently and the
+  // customer's "My Orders" view never receives admin-side status updates
+  // — exactly the symptom users were reporting. Sorting client-side keeps
+  // the subscription working out-of-the-box.
+  const q = query(collection(db, 'orders'), where('userId', '==', uid));
   return onSnapshot(
     q,
     (snap) => {
       clearFirestoreError('orders');
-      cb(unwrap<Omit<Order, 'id'>>(snap) as Order[]);
+      const items = (unwrap<Omit<Order, 'id'>>(snap) as Order[]).sort(
+        (a, b) => b.createdAt - a.createdAt,
+      );
+      cb(items);
     },
     (error) => reportFirestoreError('orders', error),
   );

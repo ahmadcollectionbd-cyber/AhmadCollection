@@ -68,16 +68,21 @@ function ContainSlide({
   const hasOverlayContent = Boolean(titleLine1 || subtitle || banner.ctaHref);
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full bg-slate-100 dark:bg-slate-900">
+      {/*
+        Mobile: render the image at its natural aspect so the full banner
+        (including any baked-in copy) stays visible — no object-cover crop.
+        Desktop (md+): keep the previous "natural height" behaviour.
+      */}
       <img
         src={banner.image}
         alt={banner.title}
         loading={eager ? 'eager' : 'lazy'}
-        className="block aspect-[3/4] w-full object-cover object-[75%_center] sm:aspect-[4/3] md:aspect-auto md:h-auto md:object-contain md:object-center"
+        className="block w-full h-auto object-contain object-center md:object-contain md:object-center"
       />
       {hasOverlayContent && (
         <>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent sm:from-black/65 sm:via-black/30 md:from-black/70 md:via-black/35" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/40 via-black/15 to-transparent sm:from-black/55 sm:via-black/25 md:from-black/70 md:via-black/35" />
           <div className="absolute inset-0 flex items-center">
             <div className="section relative z-10 w-full">
               <motion.div
@@ -141,17 +146,26 @@ function CoverSlide({
   index: number;
 }) {
   const content = SLIDE_CONTENT[banner.id] ?? DEFAULT_CONTENT;
+  const objectPosition = (banner.imagePosition ?? 'top').replace('-', ' ');
   return (
-    <div className="relative w-full overflow-hidden min-h-[320px] sm:min-h-[380px] md:min-h-[440px] lg:min-h-[500px]">
+    <div className="relative w-full overflow-hidden bg-slate-100 dark:bg-slate-900 md:min-h-[440px] lg:min-h-[500px]">
+      {/*
+        Mobile: render at natural aspect ratio (block) so the entire banner
+        is visible without cropping — addresses the "image full dekha jay
+        na" report on mobile devices.
+        Desktop (md+): keep the original cover-crop behaviour using a
+        positioned <img> filling a fixed-height slot.
+      */}
       <img
         src={banner.image}
         alt={banner.title}
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{ objectPosition: (banner.imagePosition ?? 'top').replace('-', ' ') }}
+        className="block w-full h-auto object-contain md:absolute md:inset-0 md:h-full md:w-full md:object-cover"
+        style={{ objectPosition }}
         loading={index === 0 ? 'eager' : 'lazy'}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
-      <div className="section relative z-10 flex items-center py-10 sm:py-14 md:py-20 lg:py-24">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/40 via-black/15 to-transparent md:from-black/70 md:via-black/40" />
+      <div className="absolute inset-0 z-10 flex items-center md:relative">
+       <div className="section flex w-full items-center py-6 sm:py-10 md:py-20 lg:py-24">
         <motion.div
           key={`${banner.id}-text-${index}`}
           initial={{ opacity: 0, x: -24 }}
@@ -189,6 +203,7 @@ function CoverSlide({
             </Link>
           </div>
         </motion.div>
+       </div>
       </div>
     </div>
   );

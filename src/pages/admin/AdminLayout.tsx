@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation, Link } from 'react-router-dom';
 import {
   FiBarChart2,
+  FiBell,
   FiBox,
   FiGrid,
   FiHome,
@@ -26,6 +27,7 @@ const NAV = [
   { to: '/admin/customers', label: 'Customers', icon: <FiUsers className="h-4 w-4" /> },
   { to: '/admin/coupons', label: 'Coupons', icon: <FiTag className="h-4 w-4" /> },
   { to: '/admin/analytics', label: 'Analytics', icon: <FiBarChart2 className="h-4 w-4" /> },
+  { to: '/admin/notifications', label: 'Notifications', icon: <FiBell className="h-4 w-4" /> },
   { to: '/admin/settings', label: 'Settings', icon: <FiSettings className="h-4 w-4" /> },
 ];
 
