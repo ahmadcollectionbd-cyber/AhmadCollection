@@ -58,10 +58,16 @@ export const BRAND_NAME = 'Ahmad Collection';
 export const BRAND_TAGLINE_BN = 'সুলভ মূল্যে, বিশ্বস্ততার সঙ্গে';
 export const BRAND_TAGLINE_EN = 'Trusted quality at honest prices';
 
-export function whatsappLink(message: string) {
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+export function whatsappLink(message: string, number: string = WHATSAPP_NUMBER) {
+  const digits = (number || WHATSAPP_NUMBER).replace(/[^\d]/g, '');
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
-export function callLink() {
-  return `tel:${CONTACT_PHONE}`;
+export function callLink(number: string = CONTACT_PHONE) {
+  const formatted = number?.startsWith('+') ? number : `+${(number || CONTACT_PHONE).replace(/[^\d]/g, '')}`;
+  return `tel:${formatted}`;
+}
+
+export function messengerLink(url: string) {
+  return url || 'https://m.me/100069312635469';
 }

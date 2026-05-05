@@ -1,0 +1,12 @@
+{
+  "name": "Ahmad Collection",
+  "short_name": "Ahmad",
+  "description": "Premium natural products in Bangladesh.",
+  "icons": [
+    { "src": "/logo-192.png", "sizes": "192x192", "type": "image/png" }
+  ],
+  "theme_color": "#0e5132",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/"
+}

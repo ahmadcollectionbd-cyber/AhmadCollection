@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
 import { FaWhatsapp } from 'react-icons/fa';
 import { FiCheck, FiHeart, FiPhone, FiShoppingCart, FiStar } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -10,9 +9,12 @@ import { useCartStore } from '../stores/cartStore';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLangStore } from '../stores/langStore';
-import { formatBDT, formatDate, callLink, whatsappLink, BRAND_NAME } from '../lib/utils';
+import { formatBDT, formatDate, callLink, whatsappLink } from '../lib/utils';
 import { ProductCard } from '../components/product/ProductCard';
+import { SEO } from '../components/seo/SEO';
 import { useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
+import { gaEvent, pixelEvent } from '../lib/pixel';
 
 export function Product() {
   const { t } = useTranslation();
@@ -56,10 +58,15 @@ export function Product() {
 
   return (
     <>
-      <Helmet>
-        <title>{product.name} — {BRAND_NAME}</title>
-        <meta name="description" content={product.description.slice(0, 160)} />
-      </Helmet>
+      <SEO
+        title={product.name}
+        description={product.description.slice(0, 160)}
+        image={product.images[0]}
+        path={`/product/${product.slug}`}
+        type="product"
+        product={product}
+      />
+      <ProductPixel productId={product.id} name={product.name} price={product.price} categoryIds={product.categoryIds} />
       <section className="section mt-8">
         <nav className="mb-5 text-xs text-slate-500">
           <Link to="/" className="hover:text-brand-600">Home</Link> / <Link to="/shop" className="hover:text-brand-600">Shop</Link> /{' '}
@@ -147,6 +154,18 @@ export function Product() {
                 disabled={product.stock <= 0}
                 onClick={() => {
                   add(product, qty);
+                  pixelEvent('AddToCart', {
+                    content_ids: [product.id],
+                    content_name: product.name,
+                    content_type: 'product',
+                    currency: 'BDT',
+                    value: product.price * qty,
+                  });
+                  gaEvent('add_to_cart', {
+                    currency: 'BDT',
+                    value: product.price * qty,
+                    items: [{ item_id: product.id, item_name: product.name, price: product.price, quantity: qty }],
+                  });
                   toast.success('Added to cart');
                 }}
                 className="btn-outline"
@@ -158,6 +177,12 @@ export function Product() {
                 disabled={product.stock <= 0}
                 onClick={() => {
                   add(product, qty);
+                  pixelEvent('AddToCart', {
+                    content_ids: [product.id],
+                    content_name: product.name,
+                    currency: 'BDT',
+                    value: product.price * qty,
+                  });
                   navigate('/checkout');
                 }}
                 className="btn-primary"
@@ -290,4 +315,23 @@ export function Product() {
       </section>
     </>
   );
+}
+
+function ProductPixel({ productId, name, price, categoryIds }: { productId: string; name: string; price: number; categoryIds: string[] }) {
+  useEffect(() => {
+    pixelEvent('ViewContent', {
+      content_ids: [productId],
+      content_name: name,
+      content_type: 'product',
+      content_category: categoryIds.join(','),
+      currency: 'BDT',
+      value: price,
+    });
+    gaEvent('view_item', {
+      currency: 'BDT',
+      value: price,
+      items: [{ item_id: productId, item_name: name, price }],
+    });
+  }, [productId, name, price, categoryIds]);
+  return null;
 }

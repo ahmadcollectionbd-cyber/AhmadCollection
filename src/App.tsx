@@ -1,4 +1,5 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import { Layout } from './components/layout/Layout';
@@ -22,13 +23,42 @@ import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminCustomers } from './pages/admin/AdminCustomers';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { AdminAnalytics } from './pages/admin/AdminAnalytics';
+import { AdminSettings } from './pages/admin/AdminSettings';
 import { ScrollToTop } from './components/ui/ScrollToTop';
+import { useAuthBoot } from './stores/authStore';
+import { useDataBoot } from './stores/dataStore';
+import { useOrderBoot } from './stores/orderStore';
+import { useSettingsBoot, useSettingsStore } from './stores/settingsStore';
+import { gaPageView, initGA, initPixel, pixelEvent } from './lib/pixel';
 import './i18n';
+
+function AppBoot() {
+  useAuthBoot();
+  useSettingsBoot();
+  useDataBoot();
+  useOrderBoot();
+
+  const settings = useSettingsStore((s) => s.settings);
+  const location = useLocation();
+
+  useEffect(() => {
+    initPixel(settings.metaPixelId);
+    initGA(settings.gaMeasurementId);
+  }, [settings.metaPixelId, settings.gaMeasurementId]);
+
+  useEffect(() => {
+    pixelEvent('PageView');
+    gaPageView();
+  }, [location.pathname]);
+
+  return null;
+}
 
 function App() {
   return (
     <HelmetProvider>
       <BrowserRouter>
+        <AppBoot />
         <ScrollToTop />
         <Toaster
           position="top-right"
@@ -58,6 +88,7 @@ function App() {
               <Route path="/admin/customers" element={<AdminCustomers />} />
               <Route path="/admin/coupons" element={<AdminCoupons />} />
               <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Route>
