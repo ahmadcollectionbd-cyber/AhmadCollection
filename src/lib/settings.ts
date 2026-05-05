@@ -26,6 +26,9 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   emailJsServiceId: '',
   emailJsTemplateId: '',
   emailJsPublicKey: '',
+  smsApiUrl: '',
+  smsApiToken: '',
+  smsApiSenderId: '',
   metaPixelId: '',
   gaMeasurementId: '',
   seoDescription:

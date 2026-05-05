@@ -175,6 +175,12 @@ export interface SiteSettings {
   emailJsTemplateId: string;
   /** EmailJS public key. */
   emailJsPublicKey: string;
+  /** Direct SMS API URL (e.g. BulkSMSBD, GreenWeb). Empty disables. */
+  smsApiUrl: string;
+  /** Direct SMS API token/key. */
+  smsApiToken: string;
+  /** SMS sender ID (optional, depends on provider). */
+  smsApiSenderId: string;
   /** Meta (Facebook) Pixel ID. Empty disables tracking. */
   metaPixelId: string;
   /** Google Analytics 4 measurement id. Empty disables. */

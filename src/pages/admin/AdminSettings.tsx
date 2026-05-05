@@ -98,6 +98,37 @@ export function AdminSettings() {
     }
   }
 
+  async function testSmsApi() {
+    if (!form.smsApiUrl || !form.smsApiToken) {
+      toast.error('Configure SMS API URL and token first');
+      return;
+    }
+    if (!form.adminSmsPhone) {
+      toast.error('Set an admin SMS phone first');
+      return;
+    }
+    try {
+      let phone = form.adminSmsPhone.replace(/[\s\-()]/g, '');
+      if (phone.startsWith('+88')) phone = phone.slice(3);
+      else if (phone.startsWith('88')) phone = phone.slice(2);
+
+      const url = new URL(form.smsApiUrl);
+      url.searchParams.set('token', form.smsApiToken);
+      url.searchParams.set('to', phone);
+      url.searchParams.set('message', `[${form.brandName}] Test SMS — API is working.`);
+      if (form.smsApiSenderId) url.searchParams.set('sender_id', form.smsApiSenderId);
+
+      const res = await fetch(url.toString());
+      if (res.ok) {
+        toast.success(`Test SMS sent to ${form.adminSmsPhone}`);
+      } else {
+        toast.error(`SMS API returned ${res.status}`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'SMS test failed');
+    }
+  }
+
   async function testEmailJs() {
     if (!isEmailJsConfigured(form)) {
       toast.error('Configure EmailJS service ID, template ID, and public key first');
@@ -196,7 +227,7 @@ export function AdminSettings() {
 
         <Section
           title="EmailJS (zero-config email)"
-          subtitle="Send admin emails directly from the browser via EmailJS — no Zapier or backend required. Sign up at emailjs.com (free 200/mo), create a service + template with variables {{to_email}}, {{subject}}, {{message}}, {{html}}, then paste the IDs below."
+          subtitle="Send order emails directly from the browser via EmailJS — no backend required. Sign up at emailjs.com (free 200/mo), create a service + template with {{to_email}}, {{subject}}, {{message}}, {{html}} variables. Both admin and customer confirmation emails are sent."
         >
           <Field label="Service ID" placeholder="service_xxx" {...bind('emailJsServiceId')} />
           <Field label="Template ID" placeholder="template_xxx" {...bind('emailJsTemplateId')} />
@@ -210,6 +241,31 @@ export function AdminSettings() {
               <FiSend className="h-3.5 w-3.5" />
               Send test email to {form.adminEmail || 'admin'}
             </button>
+            <p className="mt-2 text-[11px] text-slate-500">
+              When configured, customers with email addresses will also receive an order confirmation email automatically.
+            </p>
+          </div>
+        </Section>
+
+        <Section
+          title="Direct SMS API"
+          subtitle="Send SMS directly via a Bangladesh SMS gateway (e.g. BulkSMSBD, GreenWeb, ElitBuzz). This sends order notifications to both admin and customer phones. Leave empty to use webhook-only."
+        >
+          <Field label="API URL" placeholder="https://api.greenweb.com.bd/api.php" {...bind('smsApiUrl')} />
+          <Field label="API Token / Key" placeholder="Your API token" {...bind('smsApiToken')} />
+          <Field label="Sender ID (optional)" placeholder="e.g. AhmadCollection" {...bind('smsApiSenderId')} />
+          <div className="sm:col-span-2">
+            <button
+              type="button"
+              onClick={() => testSmsApi()}
+              className="btn-outline text-xs"
+            >
+              <FiSend className="h-3.5 w-3.5" />
+              Send test SMS to {form.adminSmsPhone || 'admin phone'}
+            </button>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Sends both admin and customer SMS on each order. Popular BD providers: GreenWeb, BulkSMSBD, ElitBuzz, SSLWireless.
+            </p>
           </div>
         </Section>
 
