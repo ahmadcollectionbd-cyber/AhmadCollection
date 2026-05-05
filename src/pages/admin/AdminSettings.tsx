@@ -6,6 +6,7 @@ import { useSettingsStore } from '../../stores/settingsStore';
 import { saveSettings, DEFAULT_SETTINGS } from '../../lib/settings';
 import { initGA, initPixel } from '../../lib/pixel';
 import { sendEmailViaEmailJs, isEmailJsConfigured } from '../../lib/emailjs';
+import { sendEmailViaServerless } from '../../lib/notifications';
 import type { SiteSettings } from '../../types';
 
 type FormState = SiteSettings;
@@ -153,6 +154,29 @@ export function AdminSettings() {
     }
   }
 
+  async function testServerlessEmail() {
+    if (!form.serverlessEmailUrl) {
+      toast.error('Serverless email URL is empty');
+      return;
+    }
+    if (!form.adminEmail) {
+      toast.error('Set an admin email first');
+      return;
+    }
+    const res = await sendEmailViaServerless(form, {
+      to: form.adminEmail,
+      subject: `Test email — ${form.brandName}`,
+      html: `<p>Test ping from <b>${form.brandName}</b> via the bundled serverless email function. If you received this, your Resend integration is working.</p>`,
+      fromName: form.brandName,
+      replyTo: form.adminEmail,
+    });
+    if (res.ok) {
+      toast.success(`Test email sent to ${form.adminEmail}`);
+    } else {
+      toast.error(`Serverless email error: ${res.error ?? 'unknown'}`);
+    }
+  }
+
   return (
     <>
       <Helmet><title>Settings — Admin</title></Helmet>
@@ -243,6 +267,37 @@ export function AdminSettings() {
             </button>
             <p className="mt-2 text-[11px] text-slate-500">
               When configured, customers with email addresses will also receive an order confirmation email automatically.
+            </p>
+          </div>
+        </Section>
+
+        <Section
+          title="Bundled serverless email (Resend)"
+          subtitle="Easiest setup: drop a RESEND_API_KEY into your Vercel project env vars and order emails are sent via the bundled /api/send-email function. Optionally set RESEND_FROM_EMAIL (verified domain) and NOTIFY_SHARED_SECRET for extra protection."
+        >
+          <Field
+            label="Endpoint URL"
+            placeholder="/api/send-email"
+            help="Defaults to the bundled function. Leave blank to disable."
+            {...bind('serverlessEmailUrl')}
+          />
+          <Field
+            label="Shared secret (optional)"
+            placeholder="Match NOTIFY_SHARED_SECRET in Vercel env"
+            {...bind('serverlessEmailToken')}
+          />
+          <div className="sm:col-span-2">
+            <button
+              type="button"
+              onClick={testServerlessEmail}
+              className="btn-outline text-xs"
+            >
+              <FiSend className="h-3.5 w-3.5" />
+              Send test email via serverless to {form.adminEmail || 'admin'}
+            </button>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Get a free key at <a href="https://resend.com" target="_blank" rel="noreferrer" className="underline">resend.com</a>.
+              Free tier covers 3,000 emails/month.
             </p>
           </div>
         </Section>

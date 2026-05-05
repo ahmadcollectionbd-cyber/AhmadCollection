@@ -14,6 +14,7 @@ import { computeShipping } from '../lib/settings';
 import { queueOrderNotification } from '../lib/notifications';
 import { gaEvent, pixelEvent } from '../lib/pixel';
 import { formatBDT, generateOrderId } from '../lib/utils';
+import { SafeImage } from '../components/ui/SafeImage';
 import type { Order, PaymentMethod, DeliveryZone } from '../types';
 import { useTranslation } from 'react-i18next';
 
@@ -330,7 +331,7 @@ export function Checkout() {
             <ul className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
               {items.map((it) => (
                 <li key={it.productId} className="flex items-center gap-3 text-sm">
-                  <img src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                  <SafeImage src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
                     <div className="line-clamp-1 text-sm">{it.name}</div>
                     <div className="text-xs text-slate-500">× {it.quantity}</div>

@@ -9,6 +9,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { computeShipping } from '../lib/settings';
 import { formatBDT } from '../lib/utils';
 import { useTranslation } from 'react-i18next';
+import { SafeImage } from '../components/ui/SafeImage';
 
 export function Cart() {
   const { t } = useTranslation();
@@ -58,7 +59,7 @@ export function Cart() {
               {items.map((it) => (
                 <li key={it.productId} className="card flex gap-4 p-3">
                   <Link to={`/product/${it.slug}`} className="shrink-0">
-                    <img src={it.image} alt={it.name} className="h-24 w-24 rounded-xl object-cover" />
+                    <SafeImage src={it.image} alt={it.name} className="h-24 w-24 rounded-xl object-cover" />
                   </Link>
                   <div className="flex flex-1 flex-col">
                     <Link to={`/product/${it.slug}`} className="line-clamp-2 text-sm font-semibold hover:text-brand-600">{it.name}</Link>

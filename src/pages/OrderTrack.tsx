@@ -6,6 +6,7 @@ import { useOrderStore } from '../stores/orderStore';
 import { formatBDT, formatDateTime } from '../lib/utils';
 import { OrderTimeline } from '../components/ui/OrderTimeline';
 import { OrderActions } from '../components/ui/OrderActions';
+import { SafeImage } from '../components/ui/SafeImage';
 
 export function OrderTrack() {
   const { t } = useTranslation();
@@ -66,7 +67,7 @@ export function OrderTrack() {
                   <ul className="space-y-2">
                     {order.items.slice(0, 3).map((it) => (
                       <li key={it.productId} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2 dark:bg-slate-800/40">
-                        <img src={it.image} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                        <SafeImage src={it.image} alt="" className="h-10 w-10 rounded-lg object-cover" />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm">{it.name}</div>
                           <div className="text-xs text-slate-500">× {it.quantity}</div>

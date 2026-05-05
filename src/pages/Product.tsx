@@ -10,6 +10,7 @@ import { useWishlistStore } from '../stores/wishlistStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLangStore } from '../stores/langStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { SafeImage } from '../components/ui/SafeImage';
 import { formatBDT, formatDate, callLink, whatsappLink } from '../lib/utils';
 import { ProductCard } from '../components/product/ProductCard';
 import { SEO } from '../components/seo/SEO';
@@ -79,15 +80,19 @@ export function Product() {
           <div>
             <div className="card overflow-hidden">
               <div className="aspect-square bg-gradient-soft">
-                <motion.img
+                <motion.div
                   key={imageIdx}
                   initial={{ opacity: 0, scale: 1.02 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3 }}
-                  src={product.images[imageIdx]}
-                  alt={product.name}
-                  className="h-full w-full object-cover"
-                />
+                  className="h-full w-full"
+                >
+                  <SafeImage
+                    src={product.images[imageIdx]}
+                    alt={product.name}
+                    className="h-full w-full object-cover"
+                  />
+                </motion.div>
               </div>
             </div>
             {product.images.length > 1 && (
@@ -98,7 +103,7 @@ export function Product() {
                     onClick={() => setImageIdx(i)}
                     className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 transition ${i === imageIdx ? 'border-brand-500' : 'border-transparent opacity-70 hover:opacity-100'}`}
                   >
-                    <img src={img} alt="" className="h-full w-full object-cover" />
+                    <SafeImage src={img} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>
