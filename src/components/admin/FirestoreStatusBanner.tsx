@@ -1,18 +1,27 @@
+import { useState } from 'react';
 import { FiAlertTriangle, FiX } from 'react-icons/fi';
 import { useFirestoreStatusStore } from '../../stores/firestoreStatusStore';
 import { useAuthStore } from '../../stores/authStore';
+
+const DISMISS_KEY = 'ac:firestore-banner-dismissed';
 
 /**
  * Top-of-admin banner that surfaces Firestore subscription / write errors so
  * the admin understands when reads or writes are silently failing
  * (e.g. rules not deployed, missing admin role, offline).
+ *
+ * Clicking X hides the banner for the rest of the browser session so it
+ * doesn't keep reappearing as Firestore subscriptions re-fire errors.
  */
 export function FirestoreStatusBanner() {
   const errors = useFirestoreStatusStore((s) => s.errors);
   const clearAll = useFirestoreStatusStore((s) => s.clearAll);
   const user = useAuthStore((s) => s.user);
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem(DISMISS_KEY) === '1',
+  );
   const list = Object.values(errors);
-  if (list.length === 0) return null;
+  if (list.length === 0 || dismissed) return null;
 
   const isPermissionDenied = list.some((e) => e.code === 'permission-denied');
 
@@ -60,7 +69,11 @@ export function FirestoreStatusBanner() {
           </ul>
         </div>
         <button
-          onClick={clearAll}
+          onClick={() => {
+            clearAll();
+            sessionStorage.setItem(DISMISS_KEY, '1');
+            setDismissed(true);
+          }}
           className="rounded-lg p-1.5 text-amber-700 hover:bg-amber-200/50"
           aria-label="Dismiss"
         >

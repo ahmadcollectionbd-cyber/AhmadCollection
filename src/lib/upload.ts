@@ -1,6 +1,38 @@
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { storage } from './firebase';
 
+const UPLOAD_TIMEOUT_MS = 30_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out — check your Firebase Storage CORS config and storage.rules.`)),
+      ms,
+    );
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
+function friendlyStorageError(err: unknown): Error {
+  if (err instanceof Error) {
+    if (err.message.includes('storage/unauthorized') || err.message.includes('permission')) {
+      return new Error(
+        'Upload blocked by Firebase Storage rules. Deploy storage.rules from the repo, then retry.',
+      );
+    }
+    if (err.message.includes('storage/retry-limit-exceeded') || err.message.includes('cors')) {
+      return new Error(
+        'Upload failed (CORS). Run: gsutil cors set cors.json gs://<your-bucket>',
+      );
+    }
+    return err;
+  }
+  return new Error(String(err));
+}
+
 function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -55,10 +87,27 @@ async function uploadToStorage(file: File, folder: string): Promise<string> {
   const sRef = storageRef(storage, path);
 
   try {
-    const compressed = await compressImage(file);
-    await uploadBytes(sRef, compressed, { contentType: 'image/webp' });
-  } catch {
-    await uploadBytes(sRef, file, { contentType: file.type || 'image/*' });
+    let uploaded = false;
+    try {
+      const compressed = await compressImage(file);
+      await withTimeout(
+        uploadBytes(sRef, compressed, { contentType: 'image/webp' }),
+        UPLOAD_TIMEOUT_MS,
+        'Image upload',
+      );
+      uploaded = true;
+    } catch {
+      /* compression or webp upload failed — fall through to raw upload */
+    }
+    if (!uploaded) {
+      await withTimeout(
+        uploadBytes(sRef, file, { contentType: file.type || 'image/*' }),
+        UPLOAD_TIMEOUT_MS,
+        'Image upload',
+      );
+    }
+  } catch (err) {
+    throw friendlyStorageError(err);
   }
 
   return getDownloadURL(sRef);
