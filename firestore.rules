@@ -56,9 +56,16 @@ service cloud.firestore {
     // Orders — guests can create, owners and admin can read.
     // Owners may also patch only their order's status to 'cancelled' / 'returned'
     // (so customers can cancel pending orders or request return after delivery).
+    //
+    // `get` is intentionally public so the Track Order page works for guests
+    // without exposing arbitrary docs to enumeration: new orders are stored
+    // at /orders/{shortId} where shortId is an 8-char unguessable token
+    // (~8e11 combinations). `list` queries are still restricted to the
+    // owner / admin so the collection cannot be paginated.
     match /orders/{id} {
       allow create: if true;
-      allow read: if isAdmin() ||
+      allow get: if true;
+      allow list: if isAdmin() ||
         (isSignedIn() && resource.data.userId == request.auth.uid);
       allow update: if isAdmin() || (
         isSignedIn() &&

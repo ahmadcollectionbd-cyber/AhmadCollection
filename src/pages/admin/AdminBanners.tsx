@@ -4,13 +4,26 @@ import { FiArrowDown, FiArrowUp, FiEdit2, FiPlus, FiTrash2, FiUpload, FiX } from
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
 import { uploadBannerImage } from '../../lib/upload';
-import type { Banner } from '../../types';
+import type { Banner, ImagePosition } from '../../types';
+
+const IMAGE_POSITIONS: ImagePosition[] = [
+  'top',
+  'center',
+  'bottom',
+  'left',
+  'right',
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+];
 
 const blankBanner = (): Banner => ({
   id: `b-${Date.now()}`,
   title: '',
   subtitle: '',
   image: '',
+  imagePosition: 'top',
   ctaLabel: '',
   ctaHref: '',
   active: true,
@@ -164,9 +177,38 @@ export function AdminBanners() {
               </div>
               {editing.image && (
                 <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 dark:border-white/10">
-                  <img src={editing.image} alt="" className="aspect-[16/7] w-full object-cover" />
+                  <img
+                    src={editing.image}
+                    alt=""
+                    className="aspect-[16/7] w-full object-cover"
+                    style={{
+                      objectPosition: (editing.imagePosition ?? 'top').replace('-', ' '),
+                    }}
+                  />
                 </div>
               )}
+            </label>
+
+            <label className="block sm:col-span-2">
+              <span className="label">Image focus point</span>
+              <select
+                className="input mt-1"
+                value={editing.imagePosition ?? 'top'}
+                onChange={(e) =>
+                  setEditing({ ...editing, imagePosition: e.target.value as ImagePosition })
+                }
+              >
+                {IMAGE_POSITIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Controls which part of the image stays visible after cropping. Use
+                <code className="mx-1 rounded bg-slate-100 px-1">top</code> for portraits so
+                heads are preserved.
+              </p>
             </label>
 
             <label className="block">
@@ -222,7 +264,14 @@ export function AdminBanners() {
           <li key={b.id} className="card overflow-hidden">
             <div className="relative">
               {b.image ? (
-                <img src={b.image} alt={b.title} className="aspect-[16/7] w-full object-cover" />
+                <img
+                  src={b.image}
+                  alt={b.title}
+                  className="aspect-[16/7] w-full object-cover"
+                  style={{
+                    objectPosition: (b.imagePosition ?? 'top').replace('-', ' '),
+                  }}
+                />
               ) : (
                 <div className="aspect-[16/7] w-full bg-gradient-soft" />
               )}
