@@ -247,6 +247,13 @@ export interface SiteSettings {
   smsApiToken: string;
   /** SMS sender ID (optional, depends on provider). */
   smsApiSenderId: string;
+  /**
+   * ImgBB API key for image uploads. When set, admin-panel image uploads
+   * route to ImgBB (free, 32MB max, no backend) instead of Firebase Storage.
+   * Get a free key at https://api.imgbb.com. Empty falls back to Firebase
+   * Storage (requires Blaze plan).
+   */
+  imgbbApiKey?: string;
   /** Meta (Facebook) Pixel ID. Empty disables tracking. */
   metaPixelId: string;
   /** Google Analytics 4 measurement id. Empty disables. */

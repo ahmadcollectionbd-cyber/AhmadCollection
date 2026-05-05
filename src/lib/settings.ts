@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   smsApiUrl: '',
   smsApiToken: '',
   smsApiSenderId: '',
+  imgbbApiKey: '',
   metaPixelId: '',
   gaMeasurementId: '',
   seoDescription:

@@ -1,5 +1,7 @@
 import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
 import { storage } from './firebase';
+import { uploadToImgBB } from './imgbb';
+import { useSettingsStore } from '../stores/settingsStore';
 
 const UPLOAD_TIMEOUT_MS = 30_000;
 
@@ -76,7 +78,17 @@ function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<Blob
   });
 }
 
-async function uploadToStorage(file: File, folder: string): Promise<string> {
+async function uploadToImgBBWithCompression(file: File, apiKey: string): Promise<string> {
+  let blob: Blob = file;
+  try {
+    blob = await compressImage(file);
+  } catch {
+    /* compression failed — fall back to raw file */
+  }
+  return withTimeout(uploadToImgBB(blob, apiKey), UPLOAD_TIMEOUT_MS, 'Image upload');
+}
+
+async function uploadToFirebaseStorage(file: File, folder: string): Promise<string> {
   if (!storage) {
     throw new Error(
       'Firebase Storage is not configured. Please paste an image URL instead, or set up Firebase Storage in your project.',
@@ -111,6 +123,21 @@ async function uploadToStorage(file: File, folder: string): Promise<string> {
   }
 
   return getDownloadURL(sRef);
+}
+
+/**
+ * Upload an image. Routing:
+ *   1. If `settings.imgbbApiKey` is set → upload to ImgBB (works on free
+ *      Firebase Spark plan, no backend required).
+ *   2. Otherwise fall back to Firebase Storage (requires Blaze plan and
+ *      deployed storage.rules).
+ */
+async function uploadToStorage(file: File, folder: string): Promise<string> {
+  const imgbbKey = useSettingsStore.getState().settings.imgbbApiKey?.trim();
+  if (imgbbKey) {
+    return uploadToImgBBWithCompression(file, imgbbKey);
+  }
+  return uploadToFirebaseStorage(file, folder);
 }
 
 export async function uploadProductImage(file: File): Promise<string> {

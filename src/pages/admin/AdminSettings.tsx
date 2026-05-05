@@ -367,6 +367,20 @@ export function AdminSettings() {
           </div>
         </Section>
 
+        <Section
+          title="Image upload"
+          subtitle="ImgBB API key (free, no backend needed) for product / banner / category image uploads. Leave empty to fall back to Firebase Storage (requires Blaze plan + deployed storage.rules)."
+        >
+          <div className="sm:col-span-2">
+            <Field
+              label="ImgBB API key"
+              placeholder="paste your free ImgBB API key"
+              help="Get one in 30 seconds at https://api.imgbb.com (Sign up → API → Add). 32MB max per image, no monthly cap."
+              {...bind('imgbbApiKey')}
+            />
+          </div>
+        </Section>
+
         <Section title="Tracking" subtitle="Marketing pixels — leave empty to disable.">
           <Field label="Meta Pixel ID" placeholder="e.g. 123456789012345" {...bind('metaPixelId')} />
           <Field label="Google Analytics 4 ID" placeholder="G-XXXXXXX" {...bind('gaMeasurementId')} />
