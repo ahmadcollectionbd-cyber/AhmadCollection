@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { FiBell, FiHeart, FiLogOut, FiMenu, FiPackage, FiShoppingCart, FiUser, FiX } from 'react-icons/fi';
+import { FiBell, FiHeart, FiLogOut, FiMail, FiMenu, FiPackage, FiPhone, FiShoppingCart, FiTruck, FiUser, FiX } from 'react-icons/fi';
+import { FaWhatsapp } from 'react-icons/fa';
 import { useState } from 'react';
 import { Logo } from '../ui/Logo';
 import { ThemeToggle } from '../ui/ThemeToggle';
@@ -9,8 +10,10 @@ import { useCartStore } from '../../stores/cartStore';
 import { useWishlistStore } from '../../stores/wishlistStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useDataStore } from '../../stores/dataStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { callLink, whatsappLink } from '../../lib/utils';
 
 export function Navbar() {
   const { t } = useTranslation();
@@ -20,6 +23,7 @@ export function Navbar() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const notifications = useDataStore((s) => s.notifications);
+  const settings = useSettingsStore((s) => s.settings);
   const unread = notifications.filter((n) => !n.read).length;
   const markRead = useDataStore((s) => s.markNotificationsRead);
   const [openMenu, setOpenMenu] = useState(false);
@@ -31,6 +35,27 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
+      <div className="hidden md:block border-b border-slate-200/70 bg-brand-500 text-white dark:border-white/10">
+        <div className="section flex h-9 items-center justify-between text-xs">
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center gap-1.5">
+              <FiTruck className="h-3.5 w-3.5" />
+              {t('topbar.delivery', 'Free delivery on orders above')} ৳{settings.freeDeliveryAbove || 1500}
+            </span>
+            <span className="hidden lg:inline-flex items-center gap-1.5">
+              <FiMail className="h-3.5 w-3.5" /> {settings.supportEmail}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <a href={callLink(settings.contactPhone)} className="inline-flex items-center gap-1.5 hover:opacity-80">
+              <FiPhone className="h-3.5 w-3.5" /> {settings.contactPhoneDisplay || settings.contactPhone}
+            </a>
+            <a href={whatsappLink('Hello!', settings.whatsappNumber)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:opacity-80">
+              <FaWhatsapp className="h-3.5 w-3.5" /> WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
       <div className="section flex h-16 items-center gap-3">
         <Logo />
         <nav className="ml-4 hidden lg:flex items-center gap-1">
