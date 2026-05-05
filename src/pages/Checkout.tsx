@@ -241,7 +241,7 @@ export function Checkout() {
                   <input
                     className="input mt-1"
                     list="checkout-districts"
-                    placeholder="Dhaka"
+                    placeholder={settings.deliveryCityName || 'Dhaka'}
                     {...register('city')}
                   />
                   <datalist id="checkout-districts">
@@ -277,7 +277,9 @@ export function Checkout() {
                       }`}
                     >
                       <div className="text-xs uppercase tracking-widest text-slate-400">
-                        {z === 'inside' ? 'Inside Dhaka' : 'Outside Dhaka'}
+                        {z === 'inside'
+                          ? `Inside ${settings.deliveryCityName || 'Dhaka'}`
+                          : `Outside ${settings.deliveryCityName || 'Dhaka'}`}
                       </div>
                       <div className="mt-1 text-sm font-bold">
                         {formatBDT(z === 'inside' ? settings.deliveryInside : settings.deliveryOutside)}

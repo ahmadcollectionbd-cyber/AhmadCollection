@@ -205,11 +205,18 @@ export interface SiteSettings {
   bkashNumber: string;
   /** Personal Nagad number used for manual transfers. */
   nagadNumber: string;
-  /** Delivery charge inside Dhaka (BDT). Kept for backward compat — used as the
-   *  default "inside" zone if no per-district override matches. */
+  /**
+   * Editable home-city label used in the delivery zone copy (defaults to
+   * `Dhaka`). The admin can change this to "Khulna" / "Chattogram" / any
+   * other district so the storefront's "Inside / Outside" toggle reflects
+   * the shop's actual base city without code changes.
+   */
+  deliveryCityName: string;
+  /** Delivery charge inside the home city (BDT). Used when the customer picks
+   *  the "Inside" delivery zone at checkout. */
   deliveryInside: number;
-  /** Delivery charge outside Dhaka (BDT). Used as the fallback when no
-   *  per-district override matches. */
+  /** Delivery charge outside the home city (BDT). Used when the customer picks
+   *  the "Outside" delivery zone at checkout. */
   deliveryOutside: number;
   /**
    * Optional per-district delivery charges. When the customer types a city
