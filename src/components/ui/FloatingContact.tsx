@@ -9,7 +9,7 @@ export function FloatingContact() {
   const [open, setOpen] = useState(false);
   const settings = useSettingsStore((s) => s.settings);
   return (
-    <div className="fixed bottom-20 right-5 z-30 flex flex-col items-end gap-3 md:bottom-5 md:z-40">
+    <div className="fixed bottom-24 right-4 z-30 flex flex-col items-end gap-3 md:bottom-5 md:right-5 md:z-40">
       <AnimatePresence>
         {open && (
           <>
@@ -55,7 +55,7 @@ export function FloatingContact() {
       </AnimatePresence>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="group relative inline-flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-glow-brand transition hover:scale-110"
+        className="group relative inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-glow-brand transition hover:scale-110 md:h-14 md:w-14"
         aria-label={open ? 'Close contact options' : 'Open contact options'}
       >
         {open ? <FiX className="h-6 w-6" /> : <FiMessageCircle className="h-6 w-6" />}
