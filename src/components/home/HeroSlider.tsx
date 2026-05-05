@@ -45,30 +45,88 @@ const DEFAULT_CONTENT: SlideContent = SLIDE_CONTENT['b-1'];
  * Full-width banner: shows the uploaded image at its natural aspect ratio,
  * filling 100% of the viewport width so there is never any blank space
  * on the sides. The container's height auto-adjusts to whatever the
- * image's intrinsic aspect ratio dictates — exactly what you want for
- * pre-composed marketing artwork that already has text and CTAs baked
- * into the image.
+ * image's intrinsic aspect ratio dictates.
  *
- * Title/subtitle/CTA overlay is intentionally NOT rendered here — these
- * banners are expected to carry their own copy inside the image.
+ * On top of the image we render a left-anchored bengali title /
+ * subtitle / CTA overlay. A dark left-to-right gradient is layered
+ * underneath the text to keep it readable against any background.
  */
-function ContainSlide({ banner, eager }: { banner: Banner; eager: boolean }) {
-  const slide = (
-    <img
-      src={banner.image}
-      alt={banner.title}
-      loading={eager ? 'eager' : 'lazy'}
-      className="block h-auto w-full"
-    />
+function ContainSlide({
+  banner,
+  eager,
+  index,
+}: {
+  banner: Banner;
+  eager: boolean;
+  index: number;
+}) {
+  const preset = SLIDE_CONTENT[banner.id];
+  const titleLine1 = preset?.titleBn[0] ?? banner.title;
+  const titleLine2 = preset?.titleBn[1];
+  const subtitle = preset?.subtitleBn ?? banner.subtitle;
+  const ctaLabel = preset?.ctaBn ?? banner.ctaLabel ?? 'এখনই কিনুন';
+  const hasOverlayContent = Boolean(titleLine1 || subtitle || banner.ctaHref);
+
+  return (
+    <div className="relative w-full">
+      <img
+        src={banner.image}
+        alt={banner.title}
+        loading={eager ? 'eager' : 'lazy'}
+        className="block h-auto w-full"
+      />
+      {hasOverlayContent && (
+        <>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent sm:from-black/65 sm:via-black/30 md:from-black/70 md:via-black/35" />
+          <div className="absolute inset-0 flex items-center">
+            <div className="section relative z-10 w-full">
+              <motion.div
+                key={`${banner.id}-overlay-${index}`}
+                initial={{ opacity: 0, x: -24 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6 }}
+                className="max-w-md sm:max-w-lg"
+              >
+                {titleLine1 && (
+                  <h1 className="font-bn text-xl font-extrabold leading-tight text-white drop-shadow-lg sm:text-2xl md:text-4xl lg:text-5xl">
+                    {titleLine1}
+                  </h1>
+                )}
+                {titleLine2 && (
+                  <h2 className="font-bn mt-1 text-lg font-bold leading-tight text-white/90 drop-shadow-md sm:text-xl md:text-3xl lg:text-4xl">
+                    {titleLine2}
+                  </h2>
+                )}
+                {subtitle && (
+                  <p className="font-bn mt-2 hidden max-w-md text-xs text-white/80 drop-shadow sm:mt-3 sm:block sm:text-sm md:text-base">
+                    {subtitle}
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-5 sm:gap-3">
+                  {banner.ctaHref && (
+                    <Link
+                      to={banner.ctaHref}
+                      className="font-bn inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-xl sm:gap-2 sm:px-6 sm:py-3 sm:text-sm"
+                    >
+                      <FiShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      {ctaLabel}
+                    </Link>
+                  )}
+                  <Link
+                    to="/shop"
+                    className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
+                  >
+                    Browse All
+                    <FiArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </Link>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
-  if (banner.ctaHref) {
-    return (
-      <Link to={banner.ctaHref} aria-label={banner.title} className="block">
-        {slide}
-      </Link>
-    );
-  }
-  return slide;
 }
 
 /**
@@ -161,7 +219,7 @@ export function HeroSlider() {
               {fit === 'cover' ? (
                 <CoverSlide banner={b} index={idx} />
               ) : (
-                <ContainSlide banner={b} eager={idx === 0} />
+                <ContainSlide banner={b} eager={idx === 0} index={idx} />
               )}
             </SwiperSlide>
           );
