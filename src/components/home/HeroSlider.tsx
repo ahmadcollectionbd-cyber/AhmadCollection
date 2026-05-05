@@ -41,14 +41,13 @@ const SLIDE_CONTENT: Record<string, SlideContent> = {
 const DEFAULT_CONTENT: SlideContent = SLIDE_CONTENT['b-1'];
 
 /**
- * Full-width banner: shows the uploaded image at its natural aspect ratio,
- * filling 100% of the viewport width so there is never any blank space
- * on the sides. The container's height auto-adjusts to whatever the
- * image's intrinsic aspect ratio dictates.
+ * Full-width banner slide.
  *
- * On top of the image we render a left-anchored bengali title /
- * subtitle / CTA overlay. A dark left-to-right gradient is layered
- * underneath the text to keep it readable against any background.
+ * Mobile: 1:1 aspect ratio, image cropped from right (`object-left`)
+ * so the main subject stays visible. Text overlay is sized for thumb
+ * reach with large tap-targets.
+ *
+ * Desktop (md+): natural aspect ratio, full image visible.
  */
 function ContainSlide({
   banner,
@@ -68,41 +67,36 @@ function ContainSlide({
 
   return (
     <div className="relative w-full bg-slate-100 dark:bg-slate-900">
-      {/*
-        Mobile: render the image at its natural aspect so the full banner
-        (including any baked-in copy) stays visible — no object-cover crop.
-        Desktop (md+): keep the previous "natural height" behaviour.
-      */}
       <img
         src={banner.image}
         alt={banner.title}
         loading={eager ? 'eager' : 'lazy'}
-        className="block w-full h-auto object-contain object-center md:object-contain md:object-center"
+        className="block w-full aspect-square object-cover object-left md:aspect-auto md:h-auto md:object-contain md:object-center"
       />
       {hasOverlayContent && (
         <>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent sm:from-black/55 sm:via-black/25 md:from-black/70 md:via-black/35" />
-          <div className="absolute inset-0 flex items-center">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/65 via-black/35 to-transparent md:from-black/70 md:via-black/35" />
+          <div className="absolute inset-0 flex items-end pb-14 md:items-center md:pb-0">
             <div className="section relative z-10 w-full">
               <motion.div
                 key={`${banner.id}-overlay-${index}`}
                 initial={{ opacity: 0, x: -24 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6 }}
-                className="max-w-md sm:max-w-lg"
+                className="max-w-[75%] sm:max-w-md md:max-w-lg"
               >
                 {titleLine1 && (
-                  <h1 className="font-bn text-2xl font-extrabold leading-tight text-white drop-shadow-lg sm:text-2xl md:text-4xl lg:text-5xl">
+                  <h1 className="font-bn text-xl font-extrabold leading-snug text-white drop-shadow-lg sm:text-2xl md:text-4xl lg:text-5xl">
                     {titleLine1}
                   </h1>
                 )}
                 {titleLine2 && (
-                  <h2 className="font-bn mt-1 text-xl font-bold leading-tight text-white/90 drop-shadow-md sm:text-xl md:text-3xl lg:text-4xl">
+                  <h2 className="font-bn mt-0.5 text-base font-bold leading-snug text-white/90 drop-shadow-md sm:text-xl md:text-3xl lg:text-4xl">
                     {titleLine2}
                   </h2>
                 )}
                 {subtitle && (
-                  <p className="font-bn mt-2 hidden max-w-md text-xs text-white/80 drop-shadow sm:mt-3 sm:block sm:text-sm md:text-base">
+                  <p className="font-bn mt-1.5 line-clamp-2 max-w-xs text-xs leading-relaxed text-white/80 drop-shadow sm:mt-3 sm:line-clamp-none sm:max-w-md sm:text-sm md:text-base">
                     {subtitle}
                   </p>
                 )}
@@ -110,18 +104,18 @@ function ContainSlide({
                   {banner.ctaHref && (
                     <Link
                       to={banner.ctaHref}
-                      className="font-bn inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-xl sm:gap-2 sm:px-6 sm:py-3 sm:text-sm"
+                      className="font-bn inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-xl sm:gap-2 sm:px-6 sm:py-3"
                     >
-                      <FiShoppingCart className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <FiShoppingCart className="h-4 w-4" />
                       {ctaLabel}
                     </Link>
                   )}
                   <Link
                     to="/shop"
-                    className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 bg-white/10 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 sm:gap-2 sm:px-5 sm:py-2.5 sm:text-sm"
+                    className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 sm:gap-2 sm:px-5 sm:py-2.5"
                   >
                     Browse All
-                    <FiArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <FiArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </motion.div>
@@ -134,8 +128,13 @@ function ContainSlide({
 }
 
 /**
- * Legacy "background photo + bengali overlay" slide. Kept for older banners
- * that don't have copy baked into the image.
+ * Background-photo slide with bengali overlay.
+ *
+ * Mobile: 1:1 square crop, image anchored left so the subject stays
+ * visible and the right edge is trimmed. Text sits near the bottom
+ * with generous tap-target buttons.
+ *
+ * Desktop (md+): fixed-height hero with object-cover.
  */
 function CoverSlide({
   banner,
@@ -145,49 +144,42 @@ function CoverSlide({
   index: number;
 }) {
   const content = SLIDE_CONTENT[banner.id] ?? DEFAULT_CONTENT;
-  const objectPosition = (banner.imagePosition ?? 'top').replace('-', ' ');
+  const desktopPosition = (banner.imagePosition ?? 'top').replace('-', ' ');
   return (
     <div className="relative w-full overflow-hidden bg-slate-100 dark:bg-slate-900 md:min-h-[440px] lg:min-h-[500px]">
-      {/*
-        Mobile: render at natural aspect ratio (block) so the entire banner
-        is visible without cropping — addresses the "image full dekha jay
-        na" report on mobile devices.
-        Desktop (md+): keep the original cover-crop behaviour using a
-        positioned <img> filling a fixed-height slot.
-      */}
       <img
         src={banner.image}
         alt={banner.title}
-        className="block w-full h-auto object-contain md:absolute md:inset-0 md:h-full md:w-full md:object-cover"
-        style={{ objectPosition }}
+        className="hero-slide-img block w-full aspect-square object-cover md:aspect-auto md:absolute md:inset-0 md:h-full md:w-full md:object-cover"
+        style={{ '--img-pos': desktopPosition } as React.CSSProperties}
         loading={index === 0 ? 'eager' : 'lazy'}
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent md:from-black/70 md:via-black/40" />
-      <div className="absolute inset-0 z-10 flex items-center md:relative">
-       <div className="section flex w-full items-center py-6 sm:py-10 md:py-20 lg:py-24">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/65 via-black/35 to-transparent md:from-black/70 md:via-black/40" />
+      <div className="absolute inset-0 z-10 flex items-end pb-14 md:items-center md:pb-0">
+       <div className="section flex w-full items-center py-4 sm:py-10 md:py-20 lg:py-24">
         <motion.div
           key={`${banner.id}-text-${index}`}
           initial={{ opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
-          className="max-w-lg"
+          className="max-w-[75%] sm:max-w-md md:max-w-lg"
         >
-          <h1 className="font-bn text-2xl font-extrabold leading-tight text-white sm:text-3xl md:text-4xl lg:text-5xl drop-shadow-lg">
+          <h1 className="font-bn text-xl font-extrabold leading-snug text-white drop-shadow-lg sm:text-3xl md:text-4xl lg:text-5xl">
             {content.titleBn[0]}
           </h1>
-          <h2 className="font-bn mt-1 text-xl font-bold leading-tight text-white/90 sm:text-2xl md:text-3xl lg:text-4xl drop-shadow-md">
+          <h2 className="font-bn mt-0.5 text-base font-bold leading-snug text-white/90 drop-shadow-md sm:text-2xl md:text-3xl lg:text-4xl">
             {content.titleBn[1]}
           </h2>
 
-          <p className="font-bn mt-4 max-w-md text-sm text-white/80 sm:text-base drop-shadow">
+          <p className="font-bn mt-1.5 line-clamp-2 max-w-xs text-xs leading-relaxed text-white/80 drop-shadow sm:mt-4 sm:line-clamp-none sm:max-w-md sm:text-base">
             {content.subtitleBn}
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-6 sm:gap-3">
             {banner.ctaHref && (
               <Link
                 to={banner.ctaHref}
-                className="font-bn inline-flex items-center gap-2 rounded-full bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-xl"
+                className="font-bn inline-flex items-center gap-1.5 rounded-full bg-brand-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-brand-600 hover:shadow-xl sm:gap-2 sm:px-6 sm:py-3"
               >
                 <FiShoppingCart className="h-4 w-4" />
                 {content.ctaBn}
@@ -195,7 +187,7 @@ function CoverSlide({
             )}
             <Link
               to="/shop"
-              className="inline-flex items-center gap-2 rounded-full border-2 border-white/40 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+              className="inline-flex items-center gap-1.5 rounded-full border-2 border-white/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 sm:gap-2 sm:px-5 sm:py-2.5"
             >
               Browse All
               <FiArrowRight className="h-4 w-4" />
@@ -267,6 +259,14 @@ export function HeroSlider() {
         .hero-swiper .swiper-pagination-bullet-active {
           background: var(--color-brand, #16a34a);
           width: 24px;
+        }
+        .hero-slide-img {
+          object-position: left;
+        }
+        @media (min-width: 768px) {
+          .hero-slide-img {
+            object-position: var(--img-pos, top);
+          }
         }
       `}</style>
     </section>
