@@ -6,42 +6,46 @@ export const categories: Category[] = [
     slug: 'honey',
     name: 'Honey',
     nameBn: 'খাঁটি মধু',
-    image: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1668510468038-3607aae3f03c?w=600&q=80',
   },
   {
     id: 'cat-honeycomb',
     slug: 'honeycomb',
     name: 'Raw Honeycomb',
     nameBn: 'মৌচাক',
-    image: 'https://images.unsplash.com/photo-1572297982290-7da9ed8d8c1c?w=600&q=80',
+    image:
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Apis_mellifera_carnica_worker_honeycomb_2.jpg/960px-Apis_mellifera_carnica_worker_honeycomb_2.jpg',
   },
   {
     id: 'cat-khejur-gur',
     slug: 'khejur-gur',
     name: 'Khejur Gur',
     nameBn: 'খেজুর গুড়',
-    image: 'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=600&q=80',
+    image:
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Jaggery_in_Bangladesh.jpg/960px-Jaggery_in_Bangladesh.jpg',
   },
   {
     id: 'cat-mustard',
     slug: 'mustard-oil',
     name: 'Mustard Oil',
     nameBn: 'সরিষার তেল',
-    image: 'https://images.unsplash.com/photo-1620706857370-e1b9770e8bb1?w=600&q=80',
+    image:
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Mustard_Oil_%26_Seeds_-_Kolkata_2003-10-31_00537.JPG/960px-Mustard_Oil_%26_Seeds_-_Kolkata_2003-10-31_00537.JPG',
   },
   {
     id: 'cat-ghee',
     slug: 'ghee',
     name: 'Ghee',
     nameBn: 'খাঁটি ঘি',
-    image: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1604908177453-7462950a6a3b?w=600&q=80',
   },
   {
     id: 'cat-mango',
     slug: 'mango',
     name: 'Satkhira Mango',
     nameBn: 'সাতক্ষীরার আম',
-    image: 'https://images.unsplash.com/photo-1605027990121-cbae9e0642db?w=600&q=80',
+    image:
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Mango_Bangladesh_14.jpg/960px-Mango_Bangladesh_14.jpg',
   },
   {
     id: 'cat-attar',
@@ -75,7 +79,7 @@ export const products: Product[] = [
     price: 1200,
     comparePrice: 1500,
     images: [
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=900&q=80',
+      'https://images.unsplash.com/photo-1668510468038-3607aae3f03c?w=900&q=80',
       'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=900&q=80',
       'https://images.unsplash.com/photo-1471943311424-646960669fbc?w=900&q=80',
     ],
@@ -107,7 +111,7 @@ export const products: Product[] = [
     comparePrice: 700,
     images: [
       'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=900&q=80',
-      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=900&q=80',
+      'https://images.unsplash.com/photo-1471943311424-646960669fbc?w=900&q=80',
     ],
     categoryIds: ['cat-honey'],
     stock: 100,
@@ -138,7 +142,7 @@ export const products: Product[] = [
     price: 800,
     comparePrice: 1000,
     images: [
-      'https://images.unsplash.com/photo-1572297982290-7da9ed8d8c1c?w=900&q=80',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Apis_mellifera_carnica_worker_honeycomb_2.jpg/1280px-Apis_mellifera_carnica_worker_honeycomb_2.jpg',
       'https://images.unsplash.com/photo-1471943311424-646960669fbc?w=900&q=80',
     ],
     categoryIds: ['cat-honeycomb'],
@@ -171,8 +175,8 @@ export const products: Product[] = [
     price: 480,
     comparePrice: 600,
     images: [
-      'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=900&q=80',
-      'https://images.unsplash.com/photo-1610450949065-1f2841536c8b?w=900&q=80',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Jaggery_in_Bangladesh.jpg/1280px-Jaggery_in_Bangladesh.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Jaggery_in_Bangladesh.jpg/960px-Jaggery_in_Bangladesh.jpg',
     ],
     categoryIds: ['cat-khejur-gur'],
     stock: 80,
@@ -201,8 +205,8 @@ export const products: Product[] = [
     price: 450,
     comparePrice: 550,
     images: [
-      'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=900&q=80',
-      'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=900&q=80',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/Sweet_sap_from_date_palm.JPG/960px-Sweet_sap_from_date_palm.JPG',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Jaggery_in_Bangladesh.jpg/960px-Jaggery_in_Bangladesh.jpg',
     ],
     categoryIds: ['cat-khejur-gur'],
     stock: 50,
@@ -231,8 +235,8 @@ export const products: Product[] = [
     price: 320,
     comparePrice: 380,
     images: [
-      'https://images.unsplash.com/photo-1620706857370-e1b9770e8bb1?w=900&q=80',
-      'https://images.unsplash.com/photo-1604908554007-9b2cb39d6a52?w=900&q=80',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Mustard_Oil_%26_Seeds_-_Kolkata_2003-10-31_00537.JPG/1280px-Mustard_Oil_%26_Seeds_-_Kolkata_2003-10-31_00537.JPG',
+      'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=900&q=80',
     ],
     categoryIds: ['cat-mustard'],
     stock: 200,
@@ -262,8 +266,8 @@ export const products: Product[] = [
     price: 850,
     comparePrice: 950,
     images: [
-      'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=900&q=80',
       'https://images.unsplash.com/photo-1604908177453-7462950a6a3b?w=900&q=80',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Cream_to_get_clarified_butter_home_made.Ghee.jpg/960px-Cream_to_get_clarified_butter_home_made.Ghee.jpg',
     ],
     categoryIds: ['cat-ghee'],
     stock: 40,
@@ -294,7 +298,7 @@ export const products: Product[] = [
     price: 950,
     comparePrice: 1200,
     images: [
-      'https://images.unsplash.com/photo-1605027990121-cbae9e0642db?w=900&q=80',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Mango_Bangladesh_14.jpg/1280px-Mango_Bangladesh_14.jpg',
       'https://images.unsplash.com/photo-1591073113125-e46713c829ed?w=900&q=80',
       'https://images.unsplash.com/photo-1553279768-865429fa0078?w=900&q=80',
     ],
@@ -386,8 +390,8 @@ export const products: Product[] = [
     price: 600,
     comparePrice: 800,
     images: [
-      'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=900&q=80',
       'https://images.unsplash.com/photo-1615634260167-c8cdede054de?w=900&q=80',
+      'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=900&q=80',
     ],
     categoryIds: ['cat-attar'],
     stock: 75,
@@ -415,7 +419,7 @@ export const products: Product[] = [
     comparePrice: 1200,
     images: [
       'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=900&q=80',
-      'https://images.unsplash.com/photo-1610450949065-1f2841536c8b?w=900&q=80',
+      'https://images.unsplash.com/photo-1608797178974-15b35a64ede9?w=900&q=80',
     ],
     categoryIds: ['cat-dates'],
     stock: 60,
@@ -443,8 +447,8 @@ export const products: Product[] = [
     price: 850,
     comparePrice: 1100,
     images: [
-      'https://images.unsplash.com/photo-1599599810769-bcde5a160d32?w=900&q=80',
       'https://images.unsplash.com/photo-1608797178974-15b35a64ede9?w=900&q=80',
+      'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=900&q=80',
     ],
     categoryIds: ['cat-dates'],
     stock: 90,

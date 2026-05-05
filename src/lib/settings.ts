@@ -26,6 +26,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   emailJsServiceId: '',
   emailJsTemplateId: '',
   emailJsPublicKey: '',
+  serverlessEmailUrl: '/api/send-email',
+  serverlessEmailToken: '',
   smsApiUrl: '',
   smsApiToken: '',
   smsApiSenderId: '',

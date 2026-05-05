@@ -6,6 +6,7 @@ import { useOrderStore } from '../stores/orderStore';
 import { formatBDT, formatDateTime } from '../lib/utils';
 import { OrderTimeline } from '../components/ui/OrderTimeline';
 import { OrderActions } from '../components/ui/OrderActions';
+import { SafeImage } from '../components/ui/SafeImage';
 
 export function OrderConfirmation() {
   const { shortId = '' } = useParams();
@@ -71,7 +72,7 @@ export function OrderConfirmation() {
               <ul className="mt-3 space-y-2">
                 {order.items.map((it) => (
                   <li key={it.productId} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-800/40">
-                    <img src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                    <SafeImage src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                     <div className="flex-1 min-w-0">
                       <div className="line-clamp-1 text-sm font-medium">{it.name}</div>
                       <div className="text-xs text-slate-500">{formatBDT(it.price)} × {it.quantity}</div>

@@ -9,6 +9,8 @@ import { useCartStore } from '../stores/cartStore';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLangStore } from '../stores/langStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { SafeImage } from '../components/ui/SafeImage';
 import { formatBDT, formatDate, callLink, whatsappLink } from '../lib/utils';
 import { ProductCard } from '../components/product/ProductCard';
 import { SEO } from '../components/seo/SEO';
@@ -28,6 +30,7 @@ export function Product() {
   const wished = useWishlistStore((s) => s.has);
   const user = useAuthStore((s) => s.user);
   const lang = useLangStore((s) => s.lang);
+  const settings = useSettingsStore((s) => s.settings);
 
   const product = useMemo(() => products.find((p) => p.slug === slug), [products, slug]);
   const [imageIdx, setImageIdx] = useState(0);
@@ -77,15 +80,19 @@ export function Product() {
           <div>
             <div className="card overflow-hidden">
               <div className="aspect-square bg-gradient-soft">
-                <motion.img
+                <motion.div
                   key={imageIdx}
                   initial={{ opacity: 0, scale: 1.02 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.3 }}
-                  src={product.images[imageIdx]}
-                  alt={product.name}
-                  className="h-full w-full object-cover"
-                />
+                  className="h-full w-full"
+                >
+                  <SafeImage
+                    src={product.images[imageIdx]}
+                    alt={product.name}
+                    className="h-full w-full object-cover"
+                  />
+                </motion.div>
               </div>
             </div>
             {product.images.length > 1 && (
@@ -96,7 +103,7 @@ export function Product() {
                     onClick={() => setImageIdx(i)}
                     className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 transition ${i === imageIdx ? 'border-brand-500' : 'border-transparent opacity-70 hover:opacity-100'}`}
                   >
-                    <img src={img} alt="" className="h-full w-full object-cover" />
+                    <SafeImage src={img} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -192,11 +199,11 @@ export function Product() {
             </div>
 
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              <a href={whatsappLink(wm)} target="_blank" rel="noreferrer" className="btn-outline" style={{ borderColor: '#25D36655', color: '#1ea552' }}>
+              <a href={whatsappLink(wm, settings.whatsappNumber)} target="_blank" rel="noreferrer" className="btn-outline" style={{ borderColor: '#25D36655', color: '#1ea552' }}>
                 <FaWhatsapp className="h-4 w-4" />
                 {t('product.whatsapp')}
               </a>
-              <a href={callLink()} className="btn-outline">
+              <a href={callLink(settings.contactPhone)} className="btn-outline">
                 <FiPhone className="h-4 w-4" />
                 {t('product.call')}
               </a>

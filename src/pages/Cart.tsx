@@ -5,8 +5,11 @@ import { FiShoppingCart, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useCartStore } from '../stores/cartStore';
 import { useDataStore } from '../stores/dataStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { computeShipping } from '../lib/settings';
 import { formatBDT } from '../lib/utils';
 import { useTranslation } from 'react-i18next';
+import { SafeImage } from '../components/ui/SafeImage';
 
 export function Cart() {
   const { t } = useTranslation();
@@ -15,6 +18,7 @@ export function Cart() {
   const setQty = useCartStore((s) => s.setQty);
   const subtotal = useCartStore((s) => s.subtotal());
   const coupons = useDataStore((s) => s.coupons);
+  const settings = useSettingsStore((s) => s.settings);
   const navigate = useNavigate();
   const [code, setCode] = useState('');
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
@@ -25,7 +29,7 @@ export function Cart() {
       ? Math.round((subtotal * coupon.value) / 100)
       : coupon.value
     : 0;
-  const shipping = subtotal === 0 ? 0 : subtotal >= 1500 ? 0 : 70;
+  const shipping = computeShipping(subtotal, 'inside', settings);
   const total = Math.max(0, subtotal - discount + shipping);
 
   function applyCoupon() {
@@ -55,7 +59,7 @@ export function Cart() {
               {items.map((it) => (
                 <li key={it.productId} className="card flex gap-4 p-3">
                   <Link to={`/product/${it.slug}`} className="shrink-0">
-                    <img src={it.image} alt={it.name} className="h-24 w-24 rounded-xl object-cover" />
+                    <SafeImage src={it.image} alt={it.name} className="h-24 w-24 rounded-xl object-cover" />
                   </Link>
                   <div className="flex flex-1 flex-col">
                     <Link to={`/product/${it.slug}`} className="line-clamp-2 text-sm font-semibold hover:text-brand-600">{it.name}</Link>

@@ -54,7 +54,11 @@ export function Shop() {
           <div>
             <span className="badge-brand text-[10px] uppercase tracking-widest">Shop</span>
             <h1 className="heading mt-2 text-2xl font-extrabold sm:text-3xl">
-              {q ? `Results for "${q}"` : cat ? categories.find((c) => c.slug === cat)?.name : 'All Products'}
+              {q
+                ? `Results for "${q}"`
+                : cat
+                  ? (categories.find((c) => c.slug === cat)?.name ?? 'All Products')
+                  : 'All Products'}
             </h1>
             <p className="mt-1 text-sm text-slate-500">{filtered.length} products</p>
           </div>

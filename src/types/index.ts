@@ -175,6 +175,13 @@ export interface SiteSettings {
   emailJsTemplateId: string;
   /** EmailJS public key. */
   emailJsPublicKey: string;
+  /**
+   * Serverless email endpoint URL. Defaults to `/api/send-email` (the bundled
+   * Vercel function backed by Resend). Empty string disables the channel.
+   */
+  serverlessEmailUrl?: string;
+  /** Optional shared secret sent as x-notify-token to the serverless endpoint. */
+  serverlessEmailToken?: string;
   /** Direct SMS API URL (e.g. BulkSMSBD, GreenWeb). Empty disables. */
   smsApiUrl: string;
   /** Direct SMS API token/key. */

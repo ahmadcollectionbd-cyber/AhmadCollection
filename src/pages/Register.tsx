@@ -48,6 +48,10 @@ export function Register() {
   }
 
   async function onGoogle() {
+    if (!isFirebaseConfigured) {
+      toast.error('Firebase is not configured');
+      return;
+    }
     setBusy(true);
     try {
       await loginWithGoogle();

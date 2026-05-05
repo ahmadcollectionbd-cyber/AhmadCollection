@@ -7,6 +7,7 @@ import { formatBDT } from '../../lib/utils';
 import { useCartStore } from '../../stores/cartStore';
 import { useWishlistStore } from '../../stores/wishlistStore';
 import { useLangStore } from '../../stores/langStore';
+import { SafeImage } from '../ui/SafeImage';
 
 export function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
   const add = useCartStore((s) => s.add);
@@ -30,7 +31,7 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
     >
       <Link to={`/product/${product.slug}`} className="block">
         <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-800">
-          <img
+          <SafeImage
             src={product.images[0]}
             alt={product.name}
             loading="lazy"

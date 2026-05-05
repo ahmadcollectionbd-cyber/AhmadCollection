@@ -90,9 +90,10 @@ export function AdminProducts() {
       return;
     }
     if (editing) {
+      const newSlug = slugify(values.name);
       await updateProduct(editing.id, {
         name: values.name,
-        slug: slugify(values.name),
+        slug: editing.name === values.name ? editing.slug : newSlug,
         description: values.description,
         price: values.price,
         comparePrice: values.comparePrice,

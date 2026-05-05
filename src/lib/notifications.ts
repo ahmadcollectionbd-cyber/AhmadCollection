@@ -28,6 +28,13 @@ export async function queueOrderNotification({ type, order, settings }: QueueOpt
     return fanout(settings, payload, order, type);
   }
 
+  const emailEnabled =
+    !!settings.emailWebhookUrl ||
+    isEmailJsConfigured(settings) ||
+    !!settings.serverlessEmailUrl;
+  const customerEmailEnabled =
+    (isEmailJsConfigured(settings) || !!settings.serverlessEmailUrl) && !!order.email;
+
   const ref = await addDoc(collection(db, 'notifications'), {
     type,
     orderId: order.id,
@@ -36,8 +43,8 @@ export async function queueOrderNotification({ type, order, settings }: QueueOpt
     status: 'queued',
     channels: {
       sms: settings.smsWebhookUrl || settings.smsApiToken ? 'queued' : 'skipped',
-      email: settings.emailWebhookUrl || isEmailJsConfigured(settings) ? 'queued' : 'skipped',
-      customerEmail: isEmailJsConfigured(settings) && order.email ? 'queued' : 'skipped',
+      email: emailEnabled ? 'queued' : 'skipped',
+      customerEmail: customerEmailEnabled ? 'queued' : 'skipped',
     },
     attempts: 0,
     createdAt: serverTimestamp(),
@@ -52,10 +59,10 @@ export async function queueOrderNotification({ type, order, settings }: QueueOpt
       sms: settings.smsWebhookUrl || settings.smsApiToken
         ? (result.smsOk ? 'sent' : 'failed')
         : 'skipped',
-      email: settings.emailWebhookUrl || isEmailJsConfigured(settings)
-        ? (result.emailOk ? 'sent' : 'failed')
+      email: emailEnabled ? (result.emailOk ? 'sent' : 'failed') : 'skipped',
+      customerEmail: customerEmailEnabled
+        ? (result.customerEmailOk ? 'sent' : 'failed')
         : 'skipped',
-      customerEmail: result.customerEmailOk ? 'sent' : 'skipped',
     },
     attempts: 1,
     lastError: result.error ?? '',
@@ -236,9 +243,10 @@ async function fanout(
   type: OrderNotification['type'],
 ): Promise<NotificationResult> {
   const useEmailJs = isEmailJsConfigured(settings);
+  const useServerless = !!settings.serverlessEmailUrl;
   let smsOk = !settings.smsWebhookUrl && !settings.smsApiToken;
-  let emailOk = !settings.emailWebhookUrl && !useEmailJs;
-  let customerEmailOk = false;
+  let emailOk = !settings.emailWebhookUrl && !useEmailJs && !useServerless;
+  let customerEmailOk = !useEmailJs && !useServerless;
   let error: string | undefined;
 
   const tasks: Promise<void>[] = [];
@@ -338,8 +346,103 @@ async function fanout(
     }
   }
 
+  // --- Admin email via bundled serverless function (Resend) ---
+  if (useServerless && settings.adminEmail) {
+    const email = (payload.email as { subject: string; html: string }) ?? {
+      subject: 'New order',
+      html: '',
+    };
+    tasks.push(
+      sendEmailViaServerless(settings, {
+        to: settings.adminEmail,
+        subject: email.subject,
+        html: email.html,
+        fromName: String(payload.brand ?? 'Store'),
+        replyTo: String(payload.customerEmail ?? settings.adminEmail),
+      }).then((res) => {
+        if (res.ok) {
+          emailOk = true;
+        } else if (res.error) {
+          error = appendError(error, `serverless-admin: ${res.error}`);
+        }
+      }),
+    );
+  }
+
+  // --- Customer confirmation email via bundled serverless function ---
+  if (useServerless && order.email && type === 'order.created') {
+    const custEmail = payload.customerEmailHtml as { subject: string; html: string } | undefined;
+    if (custEmail) {
+      tasks.push(
+        sendEmailViaServerless(settings, {
+          to: order.email,
+          subject: custEmail.subject,
+          html: custEmail.html,
+          fromName: String(payload.brand ?? 'Store'),
+          replyTo: settings.supportEmail || settings.adminEmail,
+        }).then((res) => {
+          if (res.ok) {
+            customerEmailOk = true;
+          } else if (res.error) {
+            error = appendError(error, `serverless-customer: ${res.error}`);
+          }
+        }),
+      );
+    }
+  }
+
   await Promise.allSettled(tasks);
   return { smsOk, emailOk, customerEmailOk, error };
+}
+
+interface ServerlessEmailParams {
+  to: string;
+  subject: string;
+  html: string;
+  fromName?: string;
+  replyTo?: string;
+}
+
+export async function sendEmailViaServerless(
+  settings: SiteSettings,
+  params: ServerlessEmailParams,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!settings.serverlessEmailUrl) {
+    return { ok: false, error: 'Serverless email URL not configured' };
+  }
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (settings.serverlessEmailToken) {
+      headers['x-notify-token'] = settings.serverlessEmailToken;
+    }
+    const res = await fetch(settings.serverlessEmailUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const body = await safeJson(res);
+      const msg =
+        (body && typeof body === 'object' && 'error' in body
+          ? String((body as { error?: unknown }).error)
+          : `HTTP ${res.status}`);
+      return { ok: false, error: msg };
+    }
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+async function safeJson(r: Response): Promise<unknown> {
+  try {
+    return await r.json();
+  } catch {
+    return null;
+  }
 }
 
 async function sendDirectSms(settings: SiteSettings, phone: string, message: string) {

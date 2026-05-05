@@ -14,12 +14,20 @@ import { computeShipping } from '../lib/settings';
 import { queueOrderNotification } from '../lib/notifications';
 import { gaEvent, pixelEvent } from '../lib/pixel';
 import { formatBDT, generateOrderId } from '../lib/utils';
+import { SafeImage } from '../components/ui/SafeImage';
 import type { Order, PaymentMethod, DeliveryZone } from '../types';
 import { useTranslation } from 'react-i18next';
 
+const BD_PHONE_REGEX = /^(?:\+?880|0)?1[3-9]\d{8}$/;
+
 const checkoutSchema = z.object({
   name: z.string().min(2, 'Name required'),
-  phone: z.string().min(10, 'Valid phone required'),
+  phone: z
+    .string()
+    .trim()
+    .refine((val) => BD_PHONE_REGEX.test(val.replace(/[\s-]/g, '')), {
+      message: 'Enter a valid Bangladesh mobile number (e.g. 01712345678)',
+    }),
   email: z.string().email('Valid email required').optional().or(z.literal('')),
   address: z.string().min(5, 'Address required'),
   city: z.string().optional(),
@@ -323,7 +331,7 @@ export function Checkout() {
             <ul className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
               {items.map((it) => (
                 <li key={it.productId} className="flex items-center gap-3 text-sm">
-                  <img src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                  <SafeImage src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
                     <div className="line-clamp-1 text-sm">{it.name}</div>
                     <div className="text-xs text-slate-500">× {it.quantity}</div>

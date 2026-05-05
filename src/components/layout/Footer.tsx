@@ -79,7 +79,8 @@ export function Footer() {
             <li><Link to="/shop?cat=mustard-oil" className="transition hover:text-brand-600 dark:hover:text-brand-300">Mustard Oil</Link></li>
             <li><Link to="/shop?cat=honey" className="transition hover:text-brand-600 dark:hover:text-brand-300">Honey</Link></li>
             <li><Link to="/shop?cat=ghee" className="transition hover:text-brand-600 dark:hover:text-brand-300">Ghee</Link></li>
-            <li><Link to="/shop?cat=spices" className="transition hover:text-brand-600 dark:hover:text-brand-300">Spices</Link></li>
+            <li><Link to="/shop?cat=khejur-gur" className="transition hover:text-brand-600 dark:hover:text-brand-300">Khejur Gur</Link></li>
+            <li><Link to="/shop?cat=dates" className="transition hover:text-brand-600 dark:hover:text-brand-300">Dates &amp; Attar</Link></li>
           </ul>
         </div>
 
