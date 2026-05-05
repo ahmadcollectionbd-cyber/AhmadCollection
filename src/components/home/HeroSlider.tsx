@@ -175,7 +175,7 @@ export function HeroSlider() {
             return (
               <SwiperSlide key={b.id}>
                 <div
-                  className={`relative h-[440px] w-full overflow-hidden bg-gradient-to-br ${palette.bg} sm:h-[340px] md:h-[360px] lg:h-[380px] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950`}
+                  className={`relative w-full overflow-hidden bg-gradient-to-br ${palette.bg} min-h-[520px] sm:min-h-[420px] md:min-h-[460px] lg:min-h-[500px] dark:from-slate-900 dark:via-slate-900 dark:to-slate-950`}
                 >
                   {/* Floating leaves */}
                   <FloatingLeaf x="10%" y="6%" rot={-20} size={28} opacity={0.45} />
@@ -185,14 +185,14 @@ export function HeroSlider() {
                   <FloatingLeaf x="40%" y="68%" rot={20} size={20} opacity={0.3} />
 
                   {/* Content grid */}
-                  <div className="relative z-10 grid h-full grid-cols-12 items-center gap-2 px-5 pb-14 pt-5 sm:px-8 sm:pb-16 sm:pt-6 md:px-12 md:pb-16 md:pt-6">
+                  <div className="relative z-10 grid grid-cols-12 items-center gap-4 px-5 pb-20 pt-5 sm:gap-2 sm:px-8 sm:pb-16 sm:pt-6 md:min-h-[420px] md:px-12 md:pb-16 md:pt-6 lg:min-h-[460px]">
                     {/* LEFT — text panel */}
                     <motion.div
                       key={`${b.id}-text-${idx}`}
                       initial={{ opacity: 0, x: -24 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.6 }}
-                      className="col-span-12 sm:col-span-7 md:col-span-6"
+                      className="order-2 col-span-12 sm:order-1 sm:col-span-7 md:col-span-6"
                     >
                       {/* Logo */}
                       <div className="flex items-center gap-3">
@@ -204,10 +204,10 @@ export function HeroSlider() {
                       </div>
 
                       {/* Title — Bengali, two lines */}
-                      <h1 className="font-bn mt-2 text-xl font-extrabold leading-tight text-[#0e5132] dark:text-white sm:text-2xl md:text-[2rem] lg:text-[2.4rem] md:leading-[1.1]">
+                      <h1 className="font-bn mt-2 break-words text-[1.35rem] font-extrabold leading-snug text-[#0e5132] dark:text-white sm:text-2xl md:text-[2rem] lg:text-[2.4rem] md:leading-[1.1]">
                         {content.titleBn[0]}
                       </h1>
-                      <h2 className="font-bn mt-0.5 text-lg font-extrabold leading-tight text-[#c81e1e] sm:text-xl md:text-[1.65rem] lg:text-[1.95rem]">
+                      <h2 className="font-bn mt-0.5 break-words text-[1.05rem] font-extrabold leading-snug text-[#c81e1e] sm:text-xl md:text-[1.65rem] lg:text-[1.95rem]">
                         {content.titleBn[1]}
                       </h2>
 
@@ -258,9 +258,9 @@ export function HeroSlider() {
                       initial={{ opacity: 0, scale: 1.05 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.8 }}
-                      className="relative col-span-12 -mr-5 sm:col-span-5 sm:-mr-8 md:col-span-6 md:-mr-12"
+                      className="relative order-1 col-span-12 -mr-5 sm:order-2 sm:col-span-5 sm:-mr-8 md:col-span-6 md:-mr-12"
                     >
-                      <div className="relative ml-auto h-full max-h-[520px] w-full">
+                      <div className="relative ml-auto h-44 w-full max-h-[520px] sm:h-[280px] md:h-[400px] lg:h-[460px]">
                         <img
                           src={b.image}
                           alt={b.title}
@@ -311,6 +311,9 @@ export function HeroSlider() {
         </Swiper>
       </div>
       <style>{`
+        .hero-swiper, .hero-swiper .swiper-wrapper, .hero-swiper .swiper-slide {
+          height: auto !important;
+        }
         .hero-swiper .swiper-pagination {
           bottom: 16px !important;
         }

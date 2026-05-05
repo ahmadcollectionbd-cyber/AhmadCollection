@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import toast from 'react-hot-toast';
 import {
   addOrderDoc,
   updateOrderStatusDoc,
@@ -8,6 +9,7 @@ import {
   watchOrdersForUser,
 } from '../lib/firestore';
 import { isFirebaseConfigured } from '../lib/firebase';
+import { reportFirestoreError } from './firestoreStatusStore';
 import type { Order, OrderStatus } from '../types';
 import { useAuthStore } from './authStore';
 
@@ -32,7 +34,12 @@ export const useOrderStore = create<OrderState>()(
           try {
             await addOrderDoc(o);
           } catch (e) {
-            console.error('Failed to persist order to Firestore', e);
+            reportFirestoreError('orders.create', e);
+            toast.error(
+              "Order saved locally but didn't sync to admin. " +
+                'Make sure Firestore rules are deployed.',
+              { duration: 6000 },
+            );
           }
         }
       },
@@ -51,7 +58,11 @@ export const useOrderStore = create<OrderState>()(
           try {
             await updateOrderStatusDoc(id, status, history);
           } catch (e) {
-            console.error('Failed to update order status in Firestore', e);
+            reportFirestoreError('orders.update', e);
+            toast.error(
+              "Status didn't sync — Firestore rules may not allow this update.",
+              { duration: 5000 },
+            );
           }
         }
       },

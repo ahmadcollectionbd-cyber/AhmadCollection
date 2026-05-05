@@ -1,12 +1,14 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { FiBarChart2, FiBox, FiGrid, FiHome, FiPackage, FiSettings, FiTag, FiUsers } from 'react-icons/fi';
+import { FiBarChart2, FiBox, FiGrid, FiHome, FiImage, FiPackage, FiSettings, FiTag, FiUsers } from 'react-icons/fi';
 import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
+import { FirestoreStatusBanner } from '../../components/admin/FirestoreStatusBanner';
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: <FiHome className="h-4 w-4" />, end: true },
   { to: '/admin/products', label: 'Products', icon: <FiBox className="h-4 w-4" /> },
   { to: '/admin/categories', label: 'Categories', icon: <FiGrid className="h-4 w-4" /> },
+  { to: '/admin/banners', label: 'Banners', icon: <FiImage className="h-4 w-4" /> },
   { to: '/admin/orders', label: 'Orders', icon: <FiPackage className="h-4 w-4" /> },
   { to: '/admin/customers', label: 'Customers', icon: <FiUsers className="h-4 w-4" /> },
   { to: '/admin/coupons', label: 'Coupons', icon: <FiTag className="h-4 w-4" /> },
@@ -67,6 +69,7 @@ export function AdminLayout() {
           </nav>
         </aside>
         <div className="min-w-0">
+          <FirestoreStatusBanner />
           <Outlet />
         </div>
       </div>

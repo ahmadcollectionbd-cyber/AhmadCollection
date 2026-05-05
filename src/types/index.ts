@@ -169,6 +169,12 @@ export interface SiteSettings {
   smsWebhookUrl: string;
   /** Webhook URL invoked when new orders arrive for email. Empty disables. */
   emailWebhookUrl: string;
+  /** EmailJS service id (browser-direct email send, no backend). Empty disables. */
+  emailJsServiceId: string;
+  /** EmailJS template id. */
+  emailJsTemplateId: string;
+  /** EmailJS public key. */
+  emailJsPublicKey: string;
   /** Meta (Facebook) Pixel ID. Empty disables tracking. */
   metaPixelId: string;
   /** Google Analytics 4 measurement id. Empty disables. */

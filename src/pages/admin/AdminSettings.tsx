@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiSave } from 'react-icons/fi';
+import { FiSave, FiSend } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { saveSettings, DEFAULT_SETTINGS } from '../../lib/settings';
 import { initGA, initPixel } from '../../lib/pixel';
+import { sendEmailViaEmailJs, isEmailJsConfigured } from '../../lib/emailjs';
 import type { SiteSettings } from '../../types';
 
 type FormState = SiteSettings;
@@ -63,6 +64,64 @@ export function AdminSettings() {
     }
   }
 
+  async function testWebhook(kind: 'sms' | 'email') {
+    const url = kind === 'sms' ? form.smsWebhookUrl : form.emailWebhookUrl;
+    if (!url) {
+      toast.error(`No ${kind.toUpperCase()} webhook URL set`);
+      return;
+    }
+    const payload = {
+      channel: kind,
+      type: 'test',
+      brand: form.brandName,
+      adminPhone: form.adminSmsPhone,
+      adminEmail: form.adminEmail,
+      sms: `[${form.brandName}] Test SMS — webhook is reachable.`,
+      email: {
+        subject: `Test email — ${form.brandName}`,
+        html: `<p>Test ping from ${form.brandName} admin settings.</p>`,
+      },
+      sentAt: new Date().toISOString(),
+    };
+    try {
+      await fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      toast.success(
+        `Test ${kind.toUpperCase()} POSTed. Check your Zapier/Make scenario / inbox.`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : `${kind} test failed`);
+    }
+  }
+
+  async function testEmailJs() {
+    if (!isEmailJsConfigured(form)) {
+      toast.error('Configure EmailJS service ID, template ID, and public key first');
+      return;
+    }
+    if (!form.adminEmail) {
+      toast.error('Set an admin email first');
+      return;
+    }
+    const res = await sendEmailViaEmailJs(form, {
+      to_email: form.adminEmail,
+      subject: `Test email — ${form.brandName}`,
+      message: `Test ping from ${form.brandName} admin settings. If you received this, your EmailJS integration is working.`,
+      html: `<p>Test ping from <b>${form.brandName}</b> admin settings.</p>`,
+      from_name: form.brandName,
+      reply_to: form.adminEmail,
+    });
+    if (res.ok) {
+      toast.success(`Test email sent to ${form.adminEmail}`);
+    } else {
+      toast.error(`EmailJS error: ${res.error ?? 'unknown'}`);
+    }
+  }
+
   return (
     <>
       <Helmet><title>Settings — Admin</title></Helmet>
@@ -115,6 +174,43 @@ export function AdminSettings() {
         >
           <Field label="SMS webhook URL" {...bind('smsWebhookUrl')} />
           <Field label="Email webhook URL" {...bind('emailWebhookUrl')} />
+          <div className="sm:col-span-2 flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => testWebhook('sms')}
+              className="btn-outline text-xs"
+            >
+              <FiSend className="h-3.5 w-3.5" />
+              Test SMS webhook
+            </button>
+            <button
+              type="button"
+              onClick={() => testWebhook('email')}
+              className="btn-outline text-xs"
+            >
+              <FiSend className="h-3.5 w-3.5" />
+              Test Email webhook
+            </button>
+          </div>
+        </Section>
+
+        <Section
+          title="EmailJS (zero-config email)"
+          subtitle="Send admin emails directly from the browser via EmailJS — no Zapier or backend required. Sign up at emailjs.com (free 200/mo), create a service + template with variables {{to_email}}, {{subject}}, {{message}}, {{html}}, then paste the IDs below."
+        >
+          <Field label="Service ID" placeholder="service_xxx" {...bind('emailJsServiceId')} />
+          <Field label="Template ID" placeholder="template_xxx" {...bind('emailJsTemplateId')} />
+          <Field label="Public key" placeholder="xxxxxx" {...bind('emailJsPublicKey')} />
+          <div className="sm:col-span-2">
+            <button
+              type="button"
+              onClick={testEmailJs}
+              className="btn-outline text-xs"
+            >
+              <FiSend className="h-3.5 w-3.5" />
+              Send test email to {form.adminEmail || 'admin'}
+            </button>
+          </div>
         </Section>
 
         <Section title="Tracking" subtitle="Marketing pixels — leave empty to disable.">

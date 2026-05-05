@@ -24,6 +24,7 @@ import type {
   Review,
 } from '../types';
 import { db, isFirebaseConfigured } from './firebase';
+import { clearFirestoreError, reportFirestoreError } from '../stores/firestoreStatusStore';
 
 type WithId<T> = T & { id: string };
 
@@ -54,10 +55,11 @@ export function watchProducts(cb: (items: Product[]) => void) {
   const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
   return onSnapshot(
     q,
-    (snap) => cb(unwrap<Omit<Product, 'id'>>(snap) as Product[]),
-    () => {
-      /* fall back to whatever cache exists */
+    (snap) => {
+      clearFirestoreError('products');
+      cb(unwrap<Omit<Product, 'id'>>(snap) as Product[]);
     },
+    (error) => reportFirestoreError('products', error),
   );
 }
 
@@ -80,7 +82,14 @@ export async function deleteProduct(id: string): Promise<void> {
 export function watchCategories(cb: (items: Category[]) => void) {
   if (!isFirebaseConfigured || !db) return () => {};
   const q = query(collection(db, 'categories'));
-  return onSnapshot(q, (snap) => cb(unwrap<Omit<Category, 'id'>>(snap) as Category[]));
+  return onSnapshot(
+    q,
+    (snap) => {
+      clearFirestoreError('categories');
+      cb(unwrap<Omit<Category, 'id'>>(snap) as Category[]);
+    },
+    (error) => reportFirestoreError('categories', error),
+  );
 }
 
 export async function upsertCategory(c: Category): Promise<void> {
@@ -97,8 +106,13 @@ export async function deleteCategory(id: string): Promise<void> {
 
 export function watchBanners(cb: (items: Banner[]) => void) {
   if (!isFirebaseConfigured || !db) return () => {};
-  return onSnapshot(collection(db, 'banners'), (snap) =>
-    cb(unwrap<Omit<Banner, 'id'>>(snap) as Banner[]),
+  return onSnapshot(
+    collection(db, 'banners'),
+    (snap) => {
+      clearFirestoreError('banners');
+      cb(unwrap<Omit<Banner, 'id'>>(snap) as Banner[]);
+    },
+    (error) => reportFirestoreError('banners', error),
   );
 }
 
@@ -116,8 +130,13 @@ export async function deleteBanner(id: string): Promise<void> {
 
 export function watchCoupons(cb: (items: Coupon[]) => void) {
   if (!isFirebaseConfigured || !db) return () => {};
-  return onSnapshot(collection(db, 'coupons'), (snap) =>
-    cb(unwrap<Omit<Coupon, 'id'>>(snap) as Coupon[]),
+  return onSnapshot(
+    collection(db, 'coupons'),
+    (snap) => {
+      clearFirestoreError('coupons');
+      cb(unwrap<Omit<Coupon, 'id'>>(snap) as Coupon[]);
+    },
+    (error) => reportFirestoreError('coupons', error),
   );
 }
 
@@ -140,8 +159,13 @@ export async function addReviewDoc(r: Review): Promise<void> {
 
 export function watchReviews(cb: (items: Review[]) => void) {
   if (!isFirebaseConfigured || !db) return () => {};
-  return onSnapshot(collection(db, 'reviews'), (snap) =>
-    cb(unwrap<Omit<Review, 'id'>>(snap) as Review[]),
+  return onSnapshot(
+    collection(db, 'reviews'),
+    (snap) => {
+      clearFirestoreError('reviews');
+      cb(unwrap<Omit<Review, 'id'>>(snap) as Review[]);
+    },
+    (error) => reportFirestoreError('reviews', error),
   );
 }
 
@@ -172,13 +196,27 @@ export function watchOrdersForUser(uid: string, cb: (items: Order[]) => void) {
     where('userId', '==', uid),
     orderBy('createdAt', 'desc'),
   );
-  return onSnapshot(q, (snap) => cb(unwrap<Omit<Order, 'id'>>(snap) as Order[]));
+  return onSnapshot(
+    q,
+    (snap) => {
+      clearFirestoreError('orders');
+      cb(unwrap<Omit<Order, 'id'>>(snap) as Order[]);
+    },
+    (error) => reportFirestoreError('orders', error),
+  );
 }
 
 export function watchAllOrders(cb: (items: Order[]) => void) {
   if (!isFirebaseConfigured || !db) return () => {};
   const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snap) => cb(unwrap<Omit<Order, 'id'>>(snap) as Order[]));
+  return onSnapshot(
+    q,
+    (snap) => {
+      clearFirestoreError('orders');
+      cb(unwrap<Omit<Order, 'id'>>(snap) as Order[]);
+    },
+    (error) => reportFirestoreError('orders', error),
+  );
 }
 
 /* ─────────────────────────  Bootstrap  ───────────────────────── */
