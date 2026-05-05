@@ -73,7 +73,7 @@ function ContainSlide({
         src={banner.image}
         alt={banner.title}
         loading={eager ? 'eager' : 'lazy'}
-        className="block h-auto w-full"
+        className="block aspect-[4/3] w-full object-cover object-right md:aspect-auto md:h-auto md:object-contain md:object-center"
       />
       {hasOverlayContent && (
         <>
