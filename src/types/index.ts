@@ -127,11 +127,19 @@ export interface Banner {
   subtitle?: string;
   image: string;
   /**
-   * CSS object-position for the background image. Useful for portraits where
-   * the default `center` cropping would chop off the subject's head.
-   * Defaults to `top` so faces stay visible.
+   * CSS object-position for the background image. Only relevant when
+   * `fitMode === 'cover'`. Defaults to `top` so faces stay visible.
    */
   imagePosition?: ImagePosition;
+  /**
+   * How the banner image fills the slot:
+   *  - `contain` (default): show the FULL image at its natural aspect ratio
+   *    with no cropping. Use this for fully composed banners that already
+   *    contain text, products and background.
+   *  - `cover`: crop the image to fill a fixed slot (anchored by
+   *    `imagePosition`) and overlay the slide title/subtitle/CTA on top.
+   */
+  fitMode?: 'contain' | 'cover';
   ctaLabel?: string;
   ctaHref?: string;
   order?: number;

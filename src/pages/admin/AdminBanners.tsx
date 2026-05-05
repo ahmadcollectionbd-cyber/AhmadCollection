@@ -24,6 +24,7 @@ const blankBanner = (): Banner => ({
   subtitle: '',
   image: '',
   imagePosition: 'top',
+  fitMode: 'contain',
   ctaLabel: '',
   ctaHref: '',
   active: true,
@@ -176,40 +177,74 @@ export function AdminBanners() {
                 </label>
               </div>
               {editing.image && (
-                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 dark:border-white/10">
-                  <img
-                    src={editing.image}
-                    alt=""
-                    className="aspect-[16/7] w-full object-cover"
-                    style={{
-                      objectPosition: (editing.imagePosition ?? 'top').replace('-', ' '),
-                    }}
-                  />
+                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900">
+                  {(editing.fitMode ?? 'contain') === 'contain' ? (
+                    <img
+                      src={editing.image}
+                      alt=""
+                      className="mx-auto block max-h-[60vh] w-full object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={editing.image}
+                      alt=""
+                      className="aspect-[16/7] w-full object-cover"
+                      style={{
+                        objectPosition: (editing.imagePosition ?? 'top').replace('-', ' '),
+                      }}
+                    />
+                  )}
                 </div>
               )}
             </label>
 
             <label className="block sm:col-span-2">
-              <span className="label">Image focus point</span>
+              <span className="label">Image fit</span>
               <select
                 className="input mt-1"
-                value={editing.imagePosition ?? 'top'}
+                value={editing.fitMode ?? 'contain'}
                 onChange={(e) =>
-                  setEditing({ ...editing, imagePosition: e.target.value as ImagePosition })
+                  setEditing({
+                    ...editing,
+                    fitMode: e.target.value as 'contain' | 'cover',
+                  })
                 }
               >
-                {IMAGE_POSITIONS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
+                <option value="contain">Show full image (no cropping)</option>
+                <option value="cover">Fill slot &amp; overlay text (may crop)</option>
               </select>
               <p className="mt-1 text-[11px] text-slate-500">
-                Controls which part of the image stays visible after cropping. Use
-                <code className="mx-1 rounded bg-slate-100 px-1">top</code> for portraits so
-                heads are preserved.
+                Pick <code className="mx-1 rounded bg-slate-100 px-1">Show full image</code>
+                for fully composed banners that already include text and products. Use
+                <code className="mx-1 rounded bg-slate-100 px-1">Fill slot</code> only when
+                the image is a clean photo and you want the bengali title/subtitle/CTA
+                overlaid on top.
               </p>
             </label>
+
+            {(editing.fitMode ?? 'contain') === 'cover' && (
+              <label className="block sm:col-span-2">
+                <span className="label">Image focus point (only for &ldquo;Fill slot&rdquo;)</span>
+                <select
+                  className="input mt-1"
+                  value={editing.imagePosition ?? 'top'}
+                  onChange={(e) =>
+                    setEditing({ ...editing, imagePosition: e.target.value as ImagePosition })
+                  }
+                >
+                  {IMAGE_POSITIONS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Controls which part of the image stays visible after cropping. Use
+                  <code className="mx-1 rounded bg-slate-100 px-1">top</code> for portraits so
+                  heads are preserved.
+                </p>
+              </label>
+            )}
 
             <label className="block">
               <span className="label">Button label</span>
@@ -264,14 +299,24 @@ export function AdminBanners() {
           <li key={b.id} className="card overflow-hidden">
             <div className="relative">
               {b.image ? (
-                <img
-                  src={b.image}
-                  alt={b.title}
-                  className="aspect-[16/7] w-full object-cover"
-                  style={{
-                    objectPosition: (b.imagePosition ?? 'top').replace('-', ' '),
-                  }}
-                />
+                (b.fitMode ?? 'contain') === 'contain' ? (
+                  <div className="flex w-full items-center justify-center bg-slate-100 dark:bg-slate-900">
+                    <img
+                      src={b.image}
+                      alt={b.title}
+                      className="max-h-[200px] w-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={b.image}
+                    alt={b.title}
+                    className="aspect-[16/7] w-full object-cover"
+                    style={{
+                      objectPosition: (b.imagePosition ?? 'top').replace('-', ' '),
+                    }}
+                  />
+                )
               ) : (
                 <div className="aspect-[16/7] w-full bg-gradient-soft" />
               )}
