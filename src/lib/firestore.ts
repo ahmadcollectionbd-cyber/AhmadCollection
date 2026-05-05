@@ -236,6 +236,50 @@ export async function seedDefaultData(args: {
   ]);
 }
 
+/**
+ * Force-overwrite Firestore documents from the in-app seed arrays. Useful when
+ * a code-side seed update needs to be pushed to an existing project that was
+ * already initialised with older defaults (e.g. fixing wrong product images).
+ *
+ * Only documents whose IDs match the seed are touched; admin-created items
+ * with auto-generated IDs are left intact.
+ *
+ * Returns counts per collection so the caller can render a summary toast.
+ */
+export async function resyncCatalogFromCode(args: {
+  products: Product[];
+  categories: Category[];
+  banners: Banner[];
+  coupons: Coupon[];
+}): Promise<{
+  products: number;
+  categories: number;
+  banners: number;
+  coupons: number;
+}> {
+  if (!isFirebaseConfigured || !db) {
+    return { products: 0, categories: 0, banners: 0, coupons: 0 };
+  }
+  async function overwrite<T extends { id: string }>(name: string, items: T[]) {
+    await Promise.all(
+      items.map((it) =>
+        setDoc(doc(db!, name, it.id), {
+          ...it,
+          updatedAt: Date.now(),
+        }),
+      ),
+    );
+    return items.length;
+  }
+  const [products, categories, banners, coupons] = await Promise.all([
+    overwrite('products', args.products),
+    overwrite('categories', args.categories),
+    overwrite('banners', args.banners),
+    overwrite('coupons', args.coupons),
+  ]);
+  return { products, categories, banners, coupons };
+}
+
 /** Convenience: simple promise-based query helper. */
 export async function fetchAll<T>(
   q: Query | string,

@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiSave, FiSend } from 'react-icons/fi';
+import { FiSave, FiSend, FiRefreshCw } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { saveSettings, DEFAULT_SETTINGS } from '../../lib/settings';
 import { initGA, initPixel } from '../../lib/pixel';
 import { sendEmailViaEmailJs, isEmailJsConfigured } from '../../lib/emailjs';
 import { sendEmailViaServerless } from '../../lib/notifications';
+import { resyncCatalogFromCode } from '../../lib/firestore';
+import {
+  banners as seedBanners,
+  categories as seedCategories,
+  coupons as seedCoupons,
+  products as seedProducts,
+} from '../../data/seed';
 import type { SiteSettings } from '../../types';
 
 type FormState = SiteSettings;
@@ -151,6 +158,32 @@ export function AdminSettings() {
       toast.success(`Test email sent to ${form.adminEmail}`);
     } else {
       toast.error(`EmailJS error: ${res.error ?? 'unknown'}`);
+    }
+  }
+
+  async function onResyncCatalog() {
+    if (
+      !confirm(
+        'Overwrite the bundled products, categories, banners and coupons in Firestore with the latest values from the app code? Items you added through the admin panel are NOT touched.',
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const counts = await resyncCatalogFromCode({
+        products: seedProducts,
+        categories: seedCategories,
+        banners: seedBanners,
+        coupons: seedCoupons,
+      });
+      toast.success(
+        `Resynced — ${counts.products} products, ${counts.categories} categories, ${counts.banners} banners, ${counts.coupons} coupons updated.`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Resync failed');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -346,6 +379,25 @@ export function AdminSettings() {
           <Field label="SEO keywords (comma separated)" {...bind('seoKeywords')} />
           <Field label="Open Graph image URL" {...bind('ogImage')} />
         </Section>
+      </div>
+
+      <div className="card mt-6 border-emerald-200 bg-emerald-50/60 p-4 text-sm dark:border-emerald-500/30 dark:bg-emerald-500/10">
+        <h2 className="font-display text-sm font-bold uppercase tracking-wider">Catalog data</h2>
+        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+          Pushes the bundled products, categories, banners and coupons from the app code into
+          Firestore, overwriting the matching documents (by ID). Use this after a code update
+          fixes images or copy on the seeded items. Items added through the admin panel keep
+          their auto-generated IDs and are not affected.
+        </p>
+        <button
+          type="button"
+          onClick={onResyncCatalog}
+          disabled={busy}
+          className="btn-outline mt-3 text-xs"
+        >
+          <FiRefreshCw className="h-3.5 w-3.5" />
+          Resync catalog from code
+        </button>
       </div>
 
       <div className="card mt-6 border-amber-200 bg-amber-50/60 p-4 text-sm dark:border-amber-500/30 dark:bg-amber-500/10">
