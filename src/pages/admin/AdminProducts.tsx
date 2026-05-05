@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiEdit2, FiPlus, FiTrash2, FiX } from 'react-icons/fi';
+import { FiEdit2, FiPlus, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
 import { useForm, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
 import type { Product } from '../../types';
 import { formatBDT, slugify } from '../../lib/utils';
+import { uploadProductImage } from '../../lib/upload';
 
 const schema = z.object({
   name: z.string().min(2),
@@ -16,7 +17,6 @@ const schema = z.object({
   comparePrice: z.coerce.number().optional(),
   stock: z.coerce.number().min(0),
   categoryId: z.string().min(1),
-  image: z.string().url('Provide a valid image URL'),
   featured: z.boolean().optional(),
   bestseller: z.boolean().optional(),
 });
@@ -33,6 +33,8 @@ export function AdminProducts() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -42,12 +44,14 @@ export function AdminProducts() {
 
   function startCreate() {
     setEditing(null);
-    reset({ name: '', description: '', price: 0, stock: 0, categoryId: categories[0]?.id, image: '', featured: false, bestseller: false });
+    setImages([]);
+    reset({ name: '', description: '', price: 0, stock: 0, categoryId: categories[0]?.id, featured: false, bestseller: false });
     setOpen(true);
   }
 
   function startEdit(p: Product) {
     setEditing(p);
+    setImages(p.images);
     reset({
       name: p.name,
       description: p.description,
@@ -55,16 +59,38 @@ export function AdminProducts() {
       comparePrice: p.comparePrice,
       stock: p.stock,
       categoryId: p.categoryIds[0],
-      image: p.images[0] || '',
       featured: p.featured,
       bestseller: p.bestseller,
     });
     setOpen(true);
   }
 
-  function onSubmit(values: Form) {
+  async function handleFiles(files: FileList | null) {
+    if (!files || !files.length) return;
+    setUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const f of Array.from(files)) {
+        const url = await uploadProductImage(f);
+        urls.push(url);
+      }
+      setImages((prev) => [...prev, ...urls]);
+      toast.success(`${urls.length} image${urls.length > 1 ? 's' : ''} uploaded`);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function onSubmit(values: Form) {
+    if (images.length === 0) {
+      toast.error('Add at least one image');
+      return;
+    }
     if (editing) {
-      updateProduct(editing.id, {
+      await updateProduct(editing.id, {
         name: values.name,
         slug: slugify(values.name),
         description: values.description,
@@ -72,14 +98,14 @@ export function AdminProducts() {
         comparePrice: values.comparePrice,
         stock: values.stock,
         categoryIds: [values.categoryId],
-        images: [values.image],
+        images,
         featured: values.featured,
         bestseller: values.bestseller,
       });
       toast.success('Product updated');
     } else {
       const id = `p-${Date.now()}`;
-      addProduct({
+      await addProduct({
         id,
         slug: slugify(values.name),
         name: values.name,
@@ -87,7 +113,7 @@ export function AdminProducts() {
         price: values.price,
         comparePrice: values.comparePrice,
         stock: values.stock,
-        images: [values.image],
+        images,
         categoryIds: [values.categoryId],
         sku: `AC-${id.slice(-4).toUpperCase()}`,
         rating: 0,
@@ -181,7 +207,7 @@ export function AdminProducts() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-          <div className="card w-full max-w-2xl p-6">
+          <div className="card w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="heading text-xl font-extrabold">{editing ? 'Edit Product' : 'New Product'}</h2>
               <button onClick={() => setOpen(false)} className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800"><FiX className="h-4 w-4" /></button>
@@ -211,19 +237,63 @@ export function AdminProducts() {
                   <input type="number" className="input mt-1" {...register('stock')} />
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="label">Category</label>
-                  <select className="input mt-1" {...register('categoryId')}>
-                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Image URL</label>
-                  <input className="input mt-1" placeholder="https://…" {...register('image')} />
-                  {errors.image && <p className="mt-1 text-xs text-accent-500">{errors.image.message}</p>}
+              <div>
+                <label className="label">Category</label>
+                <select className="input mt-1" {...register('categoryId')}>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="label">Images</label>
+                <div className="mt-1 grid gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {images.map((url, i) => (
+                      <div key={url + i} className="relative group">
+                        <img src={url} alt="" className="h-20 w-20 rounded-lg object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="absolute -right-2 -top-2 hidden rounded-full bg-rose-500 p-1 text-white shadow group-hover:block"
+                          aria-label="Remove image"
+                        >
+                          <FiX className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                    <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-500 hover:border-brand-500 hover:text-brand-600 dark:border-white/10">
+                      <FiUpload className="h-4 w-4" />
+                      <span className="mt-1">{uploading ? '…' : 'Upload'}</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleFiles(e.target.files)}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="…or paste image URL"
+                      className="input flex-1 text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const v = (e.target as HTMLInputElement).value.trim();
+                          if (v) {
+                            setImages((prev) => [...prev, v]);
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500">Drop image files or paste a URL and press Enter. First image is the cover.</p>
                 </div>
               </div>
+
               <div className="flex gap-4 text-sm">
                 <label className="inline-flex items-center gap-2"><input type="checkbox" {...register('featured')} />Featured</label>
                 <label className="inline-flex items-center gap-2"><input type="checkbox" {...register('bestseller')} />Bestseller</label>

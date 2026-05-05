@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
@@ -9,8 +9,12 @@ import { useCartStore } from '../stores/cartStore';
 import { useDataStore } from '../stores/dataStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useAuthStore } from '../stores/authStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { computeShipping } from '../lib/settings';
+import { queueOrderNotification } from '../lib/notifications';
+import { gaEvent, pixelEvent } from '../lib/pixel';
 import { formatBDT, generateOrderId } from '../lib/utils';
-import type { Order, PaymentMethod } from '../types';
+import type { Order, PaymentMethod, DeliveryZone } from '../types';
 import { useTranslation } from 'react-i18next';
 
 const checkoutSchema = z.object({
@@ -35,9 +39,11 @@ export function Checkout() {
   const addOrder = useOrderStore((s) => s.add);
   const pushNotification = useDataStore((s) => s.pushNotification);
   const user = useAuthStore((s) => s.user);
+  const settings = useSettingsStore((s) => s.settings);
   const navigate = useNavigate();
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
+  const [zone, setZone] = useState<DeliveryZone>('inside');
 
   const couponCode = state?.couponCode;
   const coupon = couponCode ? coupons.find((c) => c.code === couponCode) : null;
@@ -46,8 +52,23 @@ export function Checkout() {
       ? Math.round((subtotal * coupon.value) / 100)
       : coupon.value
     : 0;
-  const shipping = subtotal >= 1500 ? 0 : 70;
+  const shipping = useMemo(
+    () => computeShipping(subtotal, zone, settings),
+    [subtotal, zone, settings],
+  );
   const total = Math.max(0, subtotal - discount + shipping);
+
+  const cartCount = items.reduce((acc, it) => acc + it.quantity, 0);
+  // Fire InitiateCheckout once on first arrival.
+  useEffect(() => {
+    if (cartCount === 0) return;
+    pixelEvent('InitiateCheckout', {
+      currency: 'BDT',
+      value: total,
+      num_items: cartCount,
+    });
+    gaEvent('begin_checkout', { currency: 'BDT', value: total });
+  }, [cartCount, total]);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CheckoutForm>({
     resolver: zodResolver(checkoutSchema),
@@ -74,7 +95,7 @@ export function Checkout() {
       shortId,
       userId: user?.uid || null,
       guest: !user,
-      email: user?.email,
+      email: user?.email || undefined,
       customer: {
         name: values.name,
         phone: values.phone,
@@ -82,6 +103,7 @@ export function Checkout() {
         city: values.city,
         area: values.area,
         note: values.note,
+        zone,
       },
       items,
       subtotal,
@@ -96,7 +118,12 @@ export function Checkout() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    addOrder(order);
+    try {
+      await addOrder(order);
+    } catch (e) {
+      console.error('Order persist failed', e);
+    }
+
     pushNotification({
       id: `n-${Date.now()}`,
       title: 'Order placed',
@@ -105,10 +132,42 @@ export function Checkout() {
       createdAt: Date.now(),
       href: `/order/${shortId}`,
     });
+
+    pixelEvent('Purchase', {
+      currency: 'BDT',
+      value: total,
+      contents: items.map((it) => ({ id: it.productId, quantity: it.quantity })),
+      content_type: 'product',
+      num_items: items.reduce((acc, it) => acc + it.quantity, 0),
+    });
+    gaEvent('purchase', {
+      transaction_id: shortId,
+      value: total,
+      currency: 'BDT',
+      shipping,
+      items: items.map((it) => ({
+        item_id: it.productId,
+        item_name: it.name,
+        price: it.price,
+        quantity: it.quantity,
+      })),
+    });
+
+    queueOrderNotification({ type: 'order.created', order, settings }).catch(() => {
+      /* fan-out failures are tracked in the notification doc itself */
+    });
+
     clear();
     toast.success(t('checkout.success'));
     navigate(`/order/${shortId}`, { replace: true });
   }
+
+  const paymentNumber =
+    paymentMethod === 'bkash'
+      ? settings.bkashNumber
+      : paymentMethod === 'nagad'
+        ? settings.nagadNumber
+        : '';
 
   return (
     <>
@@ -155,6 +214,36 @@ export function Checkout() {
                 <label className="label">{t('checkout.note')}</label>
                 <input className="input mt-1" placeholder="e.g. Call before delivery" {...register('note')} />
               </div>
+
+              <div className="mt-4">
+                <label className="label">Delivery zone</label>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  {(['inside', 'outside'] as const).map((z) => (
+                    <button
+                      key={z}
+                      type="button"
+                      onClick={() => setZone(z)}
+                      className={`rounded-2xl border p-3 text-left transition ${
+                        zone === z
+                          ? 'border-brand-500 bg-brand-500/5 ring-2 ring-brand-500/20'
+                          : 'border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-slate-900/60'
+                      }`}
+                    >
+                      <div className="text-xs uppercase tracking-widest text-slate-400">
+                        {z === 'inside' ? 'Inside Dhaka' : 'Outside Dhaka'}
+                      </div>
+                      <div className="mt-1 text-sm font-bold">
+                        {formatBDT(z === 'inside' ? settings.deliveryInside : settings.deliveryOutside)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {settings.freeDeliveryAbove > 0 && (
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    Free delivery on orders above {formatBDT(settings.freeDeliveryAbove)}.
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="card p-5">
@@ -188,13 +277,26 @@ export function Checkout() {
                 <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800/40">
                   <p className="text-slate-600 dark:text-slate-300">
                     Send <b>{formatBDT(total)}</b> to{' '}
-                    <b>{paymentMethod === 'bkash' ? 'bKash 01914138238' : 'Nagad 01914138238'}</b>{' '}
-                    (Personal). Then enter the transaction ID below.
+                    <b>{paymentMethod === 'bkash' ? 'bKash' : 'Nagad'} {paymentNumber} (Personal)</b>.
+                    Then enter the transaction ID below.
                   </p>
-                  <input className="input mt-3" placeholder={t('checkout.paymentRef')} {...register('paymentRef')} />
+                  <input
+                    className="input mt-3"
+                    placeholder={t('checkout.paymentRef')}
+                    {...register('paymentRef')}
+                  />
                 </div>
               )}
+              {paymentMethod === 'cod' && (
+                <p className="mt-3 text-xs text-slate-500">
+                  Pay in cash when the courier delivers your order. We'll confirm the order on your phone shortly after you submit it.
+                </p>
+              )}
             </div>
+
+            <button type="submit" disabled={isSubmitting} className="btn-primary w-full lg:hidden">
+              {isSubmitting ? 'Placing order…' : `${t('checkout.placeOrder')} · ${formatBDT(total)}`}
+            </button>
           </div>
 
           <aside className="card sticky top-24 h-fit p-5">
@@ -215,19 +317,17 @@ export function Checkout() {
               <div className="flex justify-between"><dt className="text-slate-500">Subtotal</dt><dd>{formatBDT(subtotal)}</dd></div>
               <div className="flex justify-between"><dt className="text-slate-500">Shipping</dt><dd>{shipping === 0 ? 'Free' : formatBDT(shipping)}</dd></div>
               {discount > 0 && (
-                <div className="flex justify-between"><dt className="text-slate-500">Discount ({coupon?.code})</dt><dd className="text-accent-600">- {formatBDT(discount)}</dd></div>
+                <div className="flex justify-between"><dt className="text-slate-500">Discount</dt><dd className="text-accent-600">- {formatBDT(discount)}</dd></div>
               )}
               <div className="border-t border-slate-200/70 my-2 dark:border-white/10" />
-              <div className="flex justify-between text-base font-bold"><dt>Total</dt><dd>{formatBDT(total)}</dd></div>
+              <div className="flex items-baseline justify-between text-base font-bold">
+                <dt>Total</dt>
+                <dd className="text-brand-700 dark:text-brand-300">{formatBDT(total)}</dd>
+              </div>
             </dl>
-            <button type="submit" disabled={isSubmitting} className="btn-primary mt-5 w-full">
-              {t('checkout.placeOrder')}
+            <button type="submit" disabled={isSubmitting} className="btn-primary mt-4 hidden w-full lg:flex">
+              {isSubmitting ? 'Placing order…' : t('checkout.placeOrder')}
             </button>
-            {!user && (
-              <p className="mt-2 text-center text-xs text-slate-500">
-                Checking out as guest. <Link to="/login" className="text-brand-600 hover:underline">Login</Link>
-              </p>
-            )}
           </aside>
         </form>
       </section>

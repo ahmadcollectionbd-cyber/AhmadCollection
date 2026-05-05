@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useOrderStore } from '../stores/orderStore';
 import { formatBDT, formatDateTime } from '../lib/utils';
 import { OrderTimeline } from '../components/ui/OrderTimeline';
+import { OrderActions } from '../components/ui/OrderActions';
 
 export function OrderConfirmation() {
   const { shortId = '' } = useParams();
@@ -52,6 +53,7 @@ export function OrderConfirmation() {
             <div>
               <h3 className="font-display text-sm font-bold uppercase tracking-wider">Status</h3>
               <div className="mt-3"><OrderTimeline status={order.status} /></div>
+              <OrderActions order={order} />
 
               <h3 className="mt-6 font-display text-sm font-bold uppercase tracking-wider">Customer</h3>
               <div className="mt-2 rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800/40">

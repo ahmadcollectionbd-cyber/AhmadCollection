@@ -76,12 +76,16 @@ const resources = {
         track: 'Track Order',
         enterId: 'Enter your order ID',
         notFound: 'Order not found. Please double-check your ID.',
+        cancel: 'Cancel order',
+        markReceived: 'Mark as received',
+        requestReturn: 'Request return',
         status: {
           pending: 'Pending',
           confirmed: 'Confirmed',
           on_the_way: 'On the way',
           delivered: 'Delivered',
           returned: 'Returned',
+          cancelled: 'Cancelled',
         },
       },
       auth: {
@@ -181,12 +185,16 @@ const resources = {
         track: 'অর্ডার ট্র্যাক করুন',
         enterId: 'অর্ডার আইডি লিখুন',
         notFound: 'অর্ডার পাওয়া যায়নি। আইডি যাচাই করুন।',
+        cancel: 'অর্ডার বাতিল করুন',
+        markReceived: 'রিসিভ হিসাবে চিহ্নিত করুন',
+        requestReturn: 'রিটার্ন রিকোয়েস্ট',
         status: {
           pending: 'অপেক্ষমান',
           confirmed: 'নিশ্চিত',
           on_the_way: 'পথে',
           delivered: 'ডেলিভার হয়েছে',
           returned: 'ফেরত',
+          cancelled: 'বাতিল',
         },
       },
       auth: {

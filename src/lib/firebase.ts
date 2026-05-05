@@ -1,9 +1,14 @@
-import { initializeApp, type FirebaseApp } from 'firebase/app';
+import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAnalytics, isSupported as analyticsIsSupported, type Analytics } from 'firebase/analytics';
-import { getAuth, type Auth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
+/**
+ * Default Firebase Web SDK config for the public Ahmad Collection project.
+ * In production these values are public (per Firebase docs) and can be
+ * overridden via Vite env vars (`VITE_FIREBASE_*`) when self-hosting.
+ */
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: 'AIzaSyA-Vwd0B2ZIAgkM6iBjgmOZDfcd5wfNunQ',
   authDomain: 'ahmad-collection-c6b0c.firebaseapp.com',
@@ -35,12 +40,15 @@ let auth: Auth | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 let analytics: Analytics | null = null;
+let googleProvider: GoogleAuthProvider | null = null;
 
 if (isFirebaseConfigured) {
-  app = initializeApp(firebaseConfig);
+  app = getApps()[0] ?? initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
+  googleProvider = new GoogleAuthProvider();
+  googleProvider.setCustomParameters({ prompt: 'select_account' });
 
   if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
     analyticsIsSupported()
@@ -55,5 +63,4 @@ if (isFirebaseConfigured) {
   }
 }
 
-export const googleProvider = new GoogleAuthProvider();
-export { app, auth, db, storage, analytics };
+export { app, auth, db, storage, analytics, googleProvider };

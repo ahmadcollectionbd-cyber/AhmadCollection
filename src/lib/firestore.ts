@@ -1,0 +1,211 @@
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+  type Query,
+  type QuerySnapshot,
+} from 'firebase/firestore';
+import type {
+  Banner,
+  Category,
+  Coupon,
+  Order,
+  OrderStatus,
+  Product,
+  Review,
+} from '../types';
+import { db, isFirebaseConfigured } from './firebase';
+
+type WithId<T> = T & { id: string };
+
+function unwrap<T>(snap: QuerySnapshot): WithId<T>[] {
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }));
+}
+
+async function seedIfEmpty<T extends { id: string }>(name: string, items: T[]) {
+  if (!db) return;
+  const ref = collection(db, name);
+  const snap = await getDocs(ref);
+  if (!snap.empty) return;
+  await Promise.all(
+    items.map((it) =>
+      setDoc(doc(db!, name, it.id), {
+        ...it,
+        createdAt: (it as { createdAt?: number }).createdAt ?? Date.now(),
+        updatedAt: Date.now(),
+      }),
+    ),
+  );
+}
+
+/* ─────────────────────────  Products  ───────────────────────── */
+
+export function watchProducts(cb: (items: Product[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+  return onSnapshot(
+    q,
+    (snap) => cb(unwrap<Omit<Product, 'id'>>(snap) as Product[]),
+    () => {
+      /* fall back to whatever cache exists */
+    },
+  );
+}
+
+export async function upsertProduct(p: Product): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await setDoc(
+    doc(db, 'products', p.id),
+    { ...p, updatedAt: Date.now() },
+    { merge: true },
+  );
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await deleteDoc(doc(db, 'products', id));
+}
+
+/* ─────────────────────────  Categories  ───────────────────────── */
+
+export function watchCategories(cb: (items: Category[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  const q = query(collection(db, 'categories'));
+  return onSnapshot(q, (snap) => cb(unwrap<Omit<Category, 'id'>>(snap) as Category[]));
+}
+
+export async function upsertCategory(c: Category): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await setDoc(doc(db, 'categories', c.id), c, { merge: true });
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await deleteDoc(doc(db, 'categories', id));
+}
+
+/* ─────────────────────────  Banners  ───────────────────────── */
+
+export function watchBanners(cb: (items: Banner[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  return onSnapshot(collection(db, 'banners'), (snap) =>
+    cb(unwrap<Omit<Banner, 'id'>>(snap) as Banner[]),
+  );
+}
+
+export async function upsertBanner(b: Banner): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await setDoc(doc(db, 'banners', b.id), b, { merge: true });
+}
+
+export async function deleteBanner(id: string): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await deleteDoc(doc(db, 'banners', id));
+}
+
+/* ─────────────────────────  Coupons  ───────────────────────── */
+
+export function watchCoupons(cb: (items: Coupon[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  return onSnapshot(collection(db, 'coupons'), (snap) =>
+    cb(unwrap<Omit<Coupon, 'id'>>(snap) as Coupon[]),
+  );
+}
+
+export async function upsertCoupon(c: Coupon): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await setDoc(doc(db, 'coupons', c.id), c, { merge: true });
+}
+
+export async function deleteCoupon(id: string): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await deleteDoc(doc(db, 'coupons', id));
+}
+
+/* ─────────────────────────  Reviews  ───────────────────────── */
+
+export async function addReviewDoc(r: Review): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await setDoc(doc(db, 'reviews', r.id), r, { merge: true });
+}
+
+export function watchReviews(cb: (items: Review[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  return onSnapshot(collection(db, 'reviews'), (snap) =>
+    cb(unwrap<Omit<Review, 'id'>>(snap) as Review[]),
+  );
+}
+
+/* ─────────────────────────  Orders  ───────────────────────── */
+
+export async function addOrderDoc(o: Order): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await setDoc(doc(db, 'orders', o.id), o, { merge: true });
+}
+
+export async function updateOrderStatusDoc(
+  id: string,
+  status: OrderStatus,
+  history: Order['statusHistory'],
+): Promise<void> {
+  if (!db) throw new Error('Firestore not configured');
+  await updateDoc(doc(db, 'orders', id), {
+    status,
+    statusHistory: history,
+    updatedAt: Date.now(),
+  });
+}
+
+export function watchOrdersForUser(uid: string, cb: (items: Order[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  const q = query(
+    collection(db, 'orders'),
+    where('userId', '==', uid),
+    orderBy('createdAt', 'desc'),
+  );
+  return onSnapshot(q, (snap) => cb(unwrap<Omit<Order, 'id'>>(snap) as Order[]));
+}
+
+export function watchAllOrders(cb: (items: Order[]) => void) {
+  if (!isFirebaseConfigured || !db) return () => {};
+  const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snap) => cb(unwrap<Omit<Order, 'id'>>(snap) as Order[]));
+}
+
+/* ─────────────────────────  Bootstrap  ───────────────────────── */
+
+export async function seedDefaultData(args: {
+  products: Product[];
+  categories: Category[];
+  banners: Banner[];
+  coupons: Coupon[];
+}): Promise<void> {
+  if (!isFirebaseConfigured || !db) return;
+  await Promise.all([
+    seedIfEmpty('products', args.products),
+    seedIfEmpty('categories', args.categories),
+    seedIfEmpty('banners', args.banners),
+    seedIfEmpty('coupons', args.coupons),
+  ]);
+}
+
+/** Convenience: simple promise-based query helper. */
+export async function fetchAll<T>(
+  q: Query | string,
+): Promise<WithId<T>[]> {
+  if (!db) return [];
+  const target = typeof q === 'string' ? collection(db, q) : q;
+  const snap = await getDocs(target as Query);
+  return unwrap<T>(snap);
+}
+
+export const __helpers = { addDoc, serverTimestamp };

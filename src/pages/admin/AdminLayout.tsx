@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { FiBarChart2, FiBox, FiGrid, FiHome, FiPackage, FiTag, FiUsers } from 'react-icons/fi';
+import { FiBarChart2, FiBox, FiGrid, FiHome, FiPackage, FiSettings, FiTag, FiUsers } from 'react-icons/fi';
 import { useAuthStore } from '../../stores/authStore';
 import { Link } from 'react-router-dom';
 
@@ -11,16 +11,33 @@ const NAV = [
   { to: '/admin/customers', label: 'Customers', icon: <FiUsers className="h-4 w-4" /> },
   { to: '/admin/coupons', label: 'Coupons', icon: <FiTag className="h-4 w-4" /> },
   { to: '/admin/analytics', label: 'Analytics', icon: <FiBarChart2 className="h-4 w-4" /> },
+  { to: '/admin/settings', label: 'Settings', icon: <FiSettings className="h-4 w-4" /> },
 ];
 
 export function AdminLayout() {
   const user = useAuthStore((s) => s.user);
-  if (user?.role !== 'admin') {
+  const authReady = useAuthStore((s) => s.authReady);
+  if (!authReady) {
+    return (
+      <div className="section py-16 text-center text-sm text-slate-500">Loading…</div>
+    );
+  }
+  if (!user) {
+    return (
+      <div className="section py-16 text-center">
+        <h1 className="heading text-2xl font-bold">Please sign in</h1>
+        <p className="mt-2 text-sm text-slate-500">You must be signed in to access the admin panel.</p>
+        <Link to="/login" className="btn-primary mt-4 inline-flex">Login</Link>
+      </div>
+    );
+  }
+  if (user.role !== 'admin') {
     return (
       <div className="section py-16 text-center">
         <h1 className="heading text-2xl font-bold">Admin access required</h1>
-        <p className="mt-2 text-sm text-slate-500">Login with the demo admin account to access this section.</p>
-        <Link to="/login" className="btn-primary mt-4 inline-flex">Login</Link>
+        <p className="mt-2 text-sm text-slate-500">Your account does not have admin privileges.</p>
+        <p className="mt-1 text-xs text-slate-400">UID: <span className="font-mono">{user.uid}</span></p>
+        <Link to="/" className="btn-outline mt-4 inline-flex">Back to home</Link>
       </div>
     );
   }

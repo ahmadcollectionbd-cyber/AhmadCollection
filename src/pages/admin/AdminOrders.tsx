@@ -5,16 +5,32 @@ import { useOrderStore } from '../../stores/orderStore';
 import { formatBDT, formatDateTime } from '../../lib/utils';
 import type { OrderStatus } from '../../types';
 import { OrderTimeline } from '../../components/ui/OrderTimeline';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { queueOrderNotification } from '../../lib/notifications';
 
-const STATUSES: OrderStatus[] = ['pending', 'confirmed', 'on_the_way', 'delivered', 'returned'];
+const STATUSES: OrderStatus[] = ['pending', 'confirmed', 'on_the_way', 'delivered', 'returned', 'cancelled'];
 
 export function AdminOrders() {
   const orders = useOrderStore((s) => s.orders);
   const updateStatus = useOrderStore((s) => s.updateStatus);
+  const settings = useSettingsStore((s) => s.settings);
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
   const [open, setOpen] = useState<string | null>(null);
 
   const filtered = filter === 'all' ? orders : orders.filter((o) => o.status === filter);
+
+  async function changeStatus(id: string, next: OrderStatus) {
+    await updateStatus(id, next, `Updated by admin to ${next}`);
+    const refreshed = useOrderStore.getState().byId(id);
+    if (refreshed) {
+      queueOrderNotification({
+        type: next === 'cancelled' ? 'order.cancelled' : 'order.updated',
+        order: refreshed,
+        settings,
+      }).catch(() => {});
+    }
+    toast.success('Status updated');
+  }
 
   return (
     <>
@@ -64,8 +80,7 @@ export function AdminOrders() {
                     <select
                       value={o.status}
                       onChange={(e) => {
-                        updateStatus(o.id, e.target.value as OrderStatus);
-                        toast.success('Status updated');
+                        changeStatus(o.id, e.target.value as OrderStatus);
                       }}
                       className="input h-8 py-1 text-xs"
                     >

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useOrderStore } from '../stores/orderStore';
 import { formatBDT, formatDateTime } from '../lib/utils';
 import { OrderTimeline } from '../components/ui/OrderTimeline';
+import { OrderActions } from '../components/ui/OrderActions';
 
 export function OrderTrack() {
   const { t } = useTranslation();
@@ -55,6 +56,7 @@ export function OrderTrack() {
                   </div>
                 </div>
                 <div className="mt-6"><OrderTimeline status={order.status} /></div>
+                <OrderActions order={order} />
                 <div className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
                   <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/40">
                     <div className="font-semibold">{order.customer.name}</div>

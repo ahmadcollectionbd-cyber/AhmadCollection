@@ -5,6 +5,8 @@ import { useAuthStore } from '../stores/authStore';
 import { useOrderStore } from '../stores/orderStore';
 import { formatBDT, formatDateTime } from '../lib/utils';
 import { useTranslation } from 'react-i18next';
+import { OrderStatusBadge } from '../components/ui/OrderTimeline';
+import { OrderActions } from '../components/ui/OrderActions';
 
 export function Account() {
   const { t } = useTranslation();
@@ -53,16 +55,19 @@ export function Account() {
           ) : (
             <ul className="mt-3 space-y-2">
               {myOrders.map((o) => (
-                <li key={o.id} className="card flex flex-wrap items-center gap-3 p-4">
-                  <div>
-                    <div className="font-mono text-sm font-bold">{o.shortId}</div>
-                    <div className="text-xs text-slate-500">{formatDateTime(o.createdAt)} · {o.items.length} items</div>
+                <li key={o.id} className="card p-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div>
+                      <div className="font-mono text-sm font-bold">{o.shortId}</div>
+                      <div className="text-xs text-slate-500">{formatDateTime(o.createdAt)} · {o.items.length} items</div>
+                    </div>
+                    <div className="ml-auto flex items-center gap-3">
+                      <OrderStatusBadge status={o.status} />
+                      <div className="text-sm font-bold">{formatBDT(o.total)}</div>
+                      <Link to={`/order/${o.shortId}`} className="btn-outline text-xs">View</Link>
+                    </div>
                   </div>
-                  <div className="ml-auto flex items-center gap-3">
-                    <span className="badge-brand capitalize">{t(`order.status.${o.status}`)}</span>
-                    <div className="text-sm font-bold">{formatBDT(o.total)}</div>
-                    <Link to={`/order/${o.shortId}`} className="btn-outline text-xs">View</Link>
-                  </div>
+                  <OrderActions order={o} />
                 </li>
               ))}
             </ul>

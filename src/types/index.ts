@@ -1,10 +1,18 @@
-export type OrderStatus = 'pending' | 'confirmed' | 'on_the_way' | 'delivered' | 'returned';
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'on_the_way'
+  | 'delivered'
+  | 'returned'
+  | 'cancelled';
 
 export type PaymentMethod = 'bkash' | 'nagad' | 'cod';
 
 export type Lang = 'en' | 'bn';
 
 export type Theme = 'light' | 'dark';
+
+export type DeliveryZone = 'inside' | 'outside';
 
 export interface Category {
   id: string;
@@ -66,6 +74,7 @@ export interface Address {
   city?: string;
   area?: string;
   note?: string;
+  zone?: DeliveryZone;
 }
 
 export interface Order {
@@ -129,4 +138,58 @@ export interface UserProfile {
   phone?: string;
   role?: 'admin' | 'customer';
   createdAt: number;
+}
+
+export interface SiteSettings {
+  brandName: string;
+  brandTagline: string;
+  brandTaglineBn: string;
+  contactPhone: string;
+  contactPhoneDisplay: string;
+  whatsappNumber: string;
+  facebookUrl: string;
+  messengerUrl: string;
+  instagramUrl?: string;
+  supportEmail: string;
+  /** Personal bKash number used for manual transfers. */
+  bkashNumber: string;
+  /** Personal Nagad number used for manual transfers. */
+  nagadNumber: string;
+  /** Delivery charge inside Dhaka (BDT). */
+  deliveryInside: number;
+  /** Delivery charge outside Dhaka (BDT). */
+  deliveryOutside: number;
+  /** Free delivery threshold (subtotal in BDT, 0 disables). */
+  freeDeliveryAbove: number;
+  /** Phone number that receives admin SMS alerts. */
+  adminSmsPhone: string;
+  /** Email address that receives admin email alerts. */
+  adminEmail: string;
+  /** Webhook URL invoked when new orders arrive (Zapier/Make/etc.). Empty disables. */
+  smsWebhookUrl: string;
+  /** Webhook URL invoked when new orders arrive for email. Empty disables. */
+  emailWebhookUrl: string;
+  /** Meta (Facebook) Pixel ID. Empty disables tracking. */
+  metaPixelId: string;
+  /** Google Analytics 4 measurement id. Empty disables. */
+  gaMeasurementId: string;
+  /** SEO/OG defaults */
+  seoDescription: string;
+  seoDescriptionBn: string;
+  seoKeywords: string;
+  ogImage: string;
+}
+
+export interface OrderNotification {
+  id: string;
+  type: 'order.created' | 'order.updated' | 'order.cancelled';
+  orderId: string;
+  shortId: string;
+  payload: Record<string, unknown>;
+  status: 'queued' | 'sent' | 'failed';
+  channels: { sms?: 'queued' | 'sent' | 'failed' | 'skipped'; email?: 'queued' | 'sent' | 'failed' | 'skipped' };
+  attempts: number;
+  lastError?: string;
+  createdAt: number;
+  updatedAt: number;
 }
