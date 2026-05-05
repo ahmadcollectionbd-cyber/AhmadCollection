@@ -23,8 +23,28 @@ export function Navbar() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const notifications = useDataStore((s) => s.notifications);
+  const announcements = useDataStore((s) => s.announcements);
+  const readAnnouncementIds = useDataStore((s) => s.readAnnouncementIds);
   const settings = useSettingsStore((s) => s.settings);
-  const unread = notifications.filter((n) => !n.read).length;
+  // Merge admin-broadcast announcements (active only, newest first) into the
+  // bell dropdown so customers see admin push notifications alongside local
+  // welcome / order updates.
+  const announcementItems = announcements
+    .filter((a) => a.active !== false)
+    .map((a) => ({
+      id: `ann-${a.id}`,
+      title: a.title,
+      body: a.body,
+      href: a.href,
+      read: readAnnouncementIds.includes(a.id),
+      createdAt: a.createdAt,
+      kind: 'announcement' as const,
+    }));
+  const localItems = notifications.map((n) => ({ ...n, kind: 'local' as const }));
+  const allNotifications = [...announcementItems, ...localItems].sort(
+    (a, b) => b.createdAt - a.createdAt,
+  );
+  const unread = allNotifications.filter((n) => !n.read).length;
   const markRead = useDataStore((s) => s.markNotificationsRead);
   const [openMenu, setOpenMenu] = useState(false);
   const [openNotif, setOpenNotif] = useState(false);
@@ -112,15 +132,33 @@ export function Navbar() {
                     Notifications
                   </div>
                   <ul className="max-h-72 overflow-auto">
-                    {notifications.length === 0 && (
+                    {allNotifications.length === 0 && (
                       <li className="px-4 py-6 text-center text-sm text-slate-500">No notifications</li>
                     )}
-                    {notifications.map((n) => (
-                      <li key={n.id} className="px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                        <div className="font-medium">{n.title}</div>
-                        {n.body && <div className="text-xs text-slate-500">{n.body}</div>}
-                      </li>
-                    ))}
+                    {allNotifications.map((n) => {
+                      const content = (
+                        <>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-medium">{n.title}</div>
+                            {n.kind === 'announcement' && (
+                              <span className="badge-brand text-[10px]">Admin</span>
+                            )}
+                          </div>
+                          {n.body && <div className="text-xs text-slate-500">{n.body}</div>}
+                        </>
+                      );
+                      return (
+                        <li key={n.id} className="px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                          {n.href ? (
+                            <Link to={n.href} onClick={() => setOpenNotif(false)} className="block">
+                              {content}
+                            </Link>
+                          ) : (
+                            content
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </motion.div>
               )}

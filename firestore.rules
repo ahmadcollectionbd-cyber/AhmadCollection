@@ -41,6 +41,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Admin-authored broadcast announcements shown in every user's bell
+    // dropdown. Public-readable so customers can render them; only admins
+    // can publish, edit, or retract.
+    match /announcements/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     // User profiles
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();

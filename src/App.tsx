@@ -19,6 +19,7 @@ import { useAuthBoot } from './stores/authStore';
 import { useDataBoot } from './stores/dataStore';
 import { useOrderBoot } from './stores/orderStore';
 import { useSettingsBoot, useSettingsStore } from './stores/settingsStore';
+import { useWishlistBoot } from './stores/wishlistStore';
 import { gaPageView, initGA, initPixel, pixelEvent } from './lib/pixel';
 import './i18n';
 
@@ -58,6 +59,9 @@ const AdminAnalytics = lazy(() =>
 const AdminSettings = lazy(() =>
   import('./pages/admin/AdminSettings').then((m) => ({ default: m.AdminSettings })),
 );
+const AdminNotifications = lazy(() =>
+  import('./pages/admin/AdminNotifications').then((m) => ({ default: m.AdminNotifications })),
+);
 
 function RouteFallback() {
   return (
@@ -72,6 +76,7 @@ function AppBoot() {
   useSettingsBoot();
   useDataBoot();
   useOrderBoot();
+  useWishlistBoot();
 
   const settings = useSettingsStore((s) => s.settings);
   const location = useLocation();
@@ -125,6 +130,7 @@ function App() {
                 <Route path="/admin/customers" element={<AdminCustomers />} />
                 <Route path="/admin/coupons" element={<AdminCoupons />} />
                 <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                <Route path="/admin/notifications" element={<AdminNotifications />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
               </Route>
               <Route path="*" element={<NotFound />} />

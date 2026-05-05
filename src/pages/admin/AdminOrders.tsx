@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
+import { FiTrash2 } from 'react-icons/fi';
 import { useOrderStore } from '../../stores/orderStore';
 import { formatBDT, formatDateTime } from '../../lib/utils';
 import type { OrderStatus } from '../../types';
@@ -10,14 +11,48 @@ import { queueOrderNotification } from '../../lib/notifications';
 
 const STATUSES: OrderStatus[] = ['pending', 'confirmed', 'on_the_way', 'delivered', 'returned', 'cancelled'];
 
+/** Statuses considered "finished" — safe to bulk-clear from history. */
+const ARCHIVABLE: OrderStatus[] = ['delivered', 'cancelled', 'returned'];
+
 export function AdminOrders() {
   const orders = useOrderStore((s) => s.orders);
   const updateStatus = useOrderStore((s) => s.updateStatus);
+  const deleteMany = useOrderStore((s) => s.deleteMany);
   const settings = useSettingsStore((s) => s.settings);
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
   const [open, setOpen] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
 
-  const filtered = filter === 'all' ? orders : orders.filter((o) => o.status === filter);
+  const filtered = useMemo(
+    () => (filter === 'all' ? orders : orders.filter((o) => o.status === filter)),
+    [filter, orders],
+  );
+
+  const allSelected = filtered.length > 0 && filtered.every((o) => selected.has(o.id));
+  const archivableCount = orders.filter((o) => ARCHIVABLE.includes(o.status)).length;
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected((prev) => {
+      if (allSelected) {
+        const next = new Set(prev);
+        filtered.forEach((o) => next.delete(o.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filtered.forEach((o) => next.add(o.id));
+      return next;
+    });
+  }
 
   async function changeStatus(id: string, next: OrderStatus) {
     await updateStatus(id, next, `Updated by admin to ${next}`);
@@ -32,15 +67,80 @@ export function AdminOrders() {
     toast.success('Status updated');
   }
 
+  async function bulkDelete(ids: string[], label: string) {
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} ${label}? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const { ok, failed } = await deleteMany(ids);
+      if (failed > 0) toast.error(`${failed} could not be deleted (check Firestore rules).`);
+      if (ok > 0) toast.success(`Deleted ${ok} ${label}`);
+      setSelected(new Set());
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <Helmet><title>Orders — Admin</title></Helmet>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="heading text-2xl font-extrabold">Orders</h1>
-          <p className="text-sm text-slate-500">{orders.length} total</p>
+          <p className="text-sm text-slate-500">{orders.length} total · {selected.size} selected</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              bulkDelete(
+                orders.filter((o) => ARCHIVABLE.includes(o.status)).map((o) => o.id),
+                'archived orders',
+              )
+            }
+            disabled={busy || archivableCount === 0}
+            className="btn-outline text-xs disabled:opacity-50"
+            title="Delete every delivered / cancelled / returned order"
+          >
+            <FiTrash2 className="h-3.5 w-3.5" />
+            Clear archived ({archivableCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => bulkDelete(orders.map((o) => o.id), 'orders')}
+            disabled={busy || orders.length === 0}
+            className="btn-outline text-xs text-accent-600 disabled:opacity-50"
+            title="Permanently delete every order in the system"
+          >
+            <FiTrash2 className="h-3.5 w-3.5" />
+            Clear all history
+          </button>
         </div>
       </div>
+
+      {selected.size > 0 && (
+        <div className="card mt-3 flex flex-wrap items-center justify-between gap-3 border-brand-500/40 bg-brand-500/5 p-3 text-sm">
+          <span><b>{selected.size}</b> orders selected</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="btn-outline text-xs"
+            >
+              Clear selection
+            </button>
+            <button
+              type="button"
+              onClick={() => bulkDelete(Array.from(selected), 'orders')}
+              disabled={busy}
+              className="btn-outline text-xs text-accent-600 disabled:opacity-50"
+            >
+              <FiTrash2 className="h-3.5 w-3.5" />
+              Delete selected
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         <button onClick={() => setFilter('all')} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${filter === 'all' ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white/70 dark:border-white/10 dark:bg-slate-900/60'}`}>
@@ -61,6 +161,14 @@ export function AdminOrders() {
           <table className="min-w-full text-sm">
             <thead className="border-b border-slate-200/70 bg-slate-50/50 text-left text-xs uppercase tracking-wider text-slate-500 dark:border-white/10 dark:bg-slate-900/40">
               <tr>
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </th>
                 <th className="px-4 py-3">Order</th>
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Date</th>
@@ -72,6 +180,14 @@ export function AdminOrders() {
             <tbody>
               {filtered.map((o) => (
                 <tr key={o.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(o.id)}
+                      onChange={() => toggleOne(o.id)}
+                      aria-label={`Select ${o.shortId}`}
+                    />
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs">{o.shortId}</td>
                   <td className="px-4 py-3"><div className="font-medium">{o.customer.name}</div><div className="text-xs text-slate-500">{o.customer.phone}</div></td>
                   <td className="px-4 py-3 text-xs text-slate-500">{formatDateTime(o.createdAt)}</td>
@@ -91,7 +207,7 @@ export function AdminOrders() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">No orders found.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">No orders found.</td></tr>
               )}
             </tbody>
           </table>
@@ -123,6 +239,17 @@ export function AdminOrders() {
                     ))}
                   </ul>
                 </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => bulkDelete([o.id], 'order')}
+                  disabled={busy}
+                  className="btn-outline text-xs text-accent-600 disabled:opacity-50"
+                >
+                  <FiTrash2 className="h-3.5 w-3.5" />
+                  Delete order
+                </button>
               </div>
             </div>
           );
