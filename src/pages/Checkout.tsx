@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 const checkoutSchema = z.object({
   name: z.string().min(2, 'Name required'),
   phone: z.string().min(10, 'Valid phone required'),
+  email: z.string().email('Valid email required').optional().or(z.literal('')),
   address: z.string().min(5, 'Address required'),
   city: z.string().optional(),
   area: z.string().optional(),
@@ -95,7 +96,7 @@ export function Checkout() {
       shortId,
       userId: user?.uid || null,
       guest: !user,
-      email: user?.email || undefined,
+      email: values.email?.trim() || user?.email || undefined,
       customer: {
         name: values.name,
         phone: values.phone,
@@ -153,9 +154,22 @@ export function Checkout() {
       })),
     });
 
-    queueOrderNotification({ type: 'order.created', order, settings }).catch(() => {
-      /* fan-out failures are tracked in the notification doc itself */
-    });
+    queueOrderNotification({ type: 'order.created', order, settings })
+      .then((result) => {
+        if (result.smsOk) {
+          toast.success('SMS notification sent');
+        }
+        if (result.emailOk) {
+          toast.success('Admin email notification sent');
+        }
+        if (result.customerEmailOk) {
+          toast.success('Order confirmation email sent to you');
+        }
+        if (result.error) {
+          console.warn('Notification errors:', result.error);
+        }
+      })
+      .catch(() => {});
 
     clear();
     toast.success(t('checkout.success'));
@@ -189,6 +203,11 @@ export function Checkout() {
                   <label className="label">{t('checkout.phone')}</label>
                   <input className="input mt-1" placeholder="01XXXXXXXXX" {...register('phone')} />
                   {errors.phone && <p className="mt-1 text-xs text-accent-500">{errors.phone.message}</p>}
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="label">Email (optional — for order confirmation)</label>
+                  <input className="input mt-1" type="email" placeholder="your@email.com" {...register('email')} />
+                  {errors.email && <p className="mt-1 text-xs text-accent-500">{errors.email.message}</p>}
                 </div>
               </div>
             </div>

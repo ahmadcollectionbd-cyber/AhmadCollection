@@ -8,7 +8,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition hover:bg-white/20 hover:text-white"
+      className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/70 text-slate-700 backdrop-blur transition hover:border-brand-500/40 hover:text-brand-600 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:text-brand-300"
       aria-label="Toggle theme"
     >
       <AnimatePresence mode="wait" initial={false}>
