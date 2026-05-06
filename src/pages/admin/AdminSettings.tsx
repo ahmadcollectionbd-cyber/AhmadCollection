@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiSave, FiSend, FiRefreshCw, FiSettings } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { saveSettings, DEFAULT_SETTINGS } from '../../lib/settings';
+import { saveSettings, DEFAULT_SETTINGS, DEFAULT_MANGO_DELIVERY } from '../../lib/settings';
 import { initGA, initPixel } from '../../lib/pixel';
 import { sendEmailViaEmailJs, isEmailJsConfigured } from '../../lib/emailjs';
 import { sendEmailViaServerless } from '../../lib/notifications';
@@ -264,6 +264,16 @@ export function AdminSettings() {
           />
         </Section>
 
+        <MangoDeliverySection
+          form={form}
+          onChange={(patch) =>
+            setForm((p) => ({
+              ...p,
+              mangoDelivery: { ...(p.mangoDelivery ?? DEFAULT_MANGO_DELIVERY), ...patch },
+            }))
+          }
+        />
+
         <Section title="Payments" subtitle="Personal bKash / Nagad numbers shown on checkout.">
           <Field label="bKash personal number" {...bind('bkashNumber')} />
           <Field label="Nagad personal number" {...bind('nagadNumber')} />
@@ -486,6 +496,177 @@ function Field({
       <span className="label">{label}</span>
       <input className="input mt-1" {...rest} />
       {help && <span className="mt-1 block text-[11px] text-slate-500">{help}</span>}
+    </label>
+  );
+}
+
+const MANGO_ZONE_LABELS: { id: 'cityInside' | 'districtOutside' | 'upozila'; label: string }[] = [
+  { id: 'cityInside', label: 'Dhaka City (Inside)' },
+  { id: 'districtOutside', label: 'District / Outside Dhaka' },
+  { id: 'upozila', label: 'Upozila / Sub-district' },
+];
+
+function MangoDeliverySection({
+  form,
+  onChange,
+}: {
+  form: SiteSettings;
+  onChange: (patch: Partial<NonNullable<SiteSettings['mangoDelivery']>>) => void;
+}) {
+  const cfg = form.mangoDelivery ?? DEFAULT_MANGO_DELIVERY;
+  return (
+    <div className="card relative overflow-hidden p-5 xl:col-span-2">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500"
+      />
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
+            Mango / per-kg delivery (Steadfast)
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Used when the cart contains a per-kg food product. Customer picks zone + Point/Home at checkout.
+          </p>
+        </div>
+        <label className="inline-flex items-center gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300"
+            checked={cfg.enabled}
+            onChange={(e) => onChange({ enabled: e.target.checked })}
+          />
+          {cfg.enabled ? 'Enabled' : 'Disabled'}
+        </label>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label="Weight threshold (kg)"
+          type="number"
+          help="Below this weight uses the lower row, on/above uses the upper row."
+          value={cfg.weightThresholdKg}
+          onChange={(e) => onChange({ weightThresholdKg: Math.max(1, Number(e.target.value) || 1) })}
+        />
+      </div>
+
+      {MANGO_ZONE_LABELS.map(({ id, label }) => {
+        const zone = cfg.zones[id];
+        const min = cfg.minimumCharge[id];
+        return (
+          <div
+            key={id}
+            className="mt-4 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-3 dark:border-white/10 dark:bg-slate-900/40"
+          >
+            <div className="text-xs font-bold uppercase tracking-widest text-slate-500">{label}</div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-4">
+              <NumField
+                label={`Below ${cfg.weightThresholdKg}kg · Point (৳/kg)`}
+                value={zone.belowThreshold.pointPerKg}
+                onChange={(v) =>
+                  onChange({
+                    zones: {
+                      ...cfg.zones,
+                      [id]: {
+                        ...zone,
+                        belowThreshold: { ...zone.belowThreshold, pointPerKg: v },
+                      },
+                    },
+                  })
+                }
+              />
+              <NumField
+                label={`Below ${cfg.weightThresholdKg}kg · Home (৳/kg)`}
+                value={zone.belowThreshold.homePerKg}
+                onChange={(v) =>
+                  onChange({
+                    zones: {
+                      ...cfg.zones,
+                      [id]: {
+                        ...zone,
+                        belowThreshold: { ...zone.belowThreshold, homePerKg: v },
+                      },
+                    },
+                  })
+                }
+              />
+              <NumField
+                label={`${cfg.weightThresholdKg}kg+ · Point (৳/kg)`}
+                value={zone.aboveThreshold.pointPerKg}
+                onChange={(v) =>
+                  onChange({
+                    zones: {
+                      ...cfg.zones,
+                      [id]: {
+                        ...zone,
+                        aboveThreshold: { ...zone.aboveThreshold, pointPerKg: v },
+                      },
+                    },
+                  })
+                }
+              />
+              <NumField
+                label={`${cfg.weightThresholdKg}kg+ · Home (৳/kg)`}
+                value={zone.aboveThreshold.homePerKg}
+                onChange={(v) =>
+                  onChange({
+                    zones: {
+                      ...cfg.zones,
+                      [id]: {
+                        ...zone,
+                        aboveThreshold: { ...zone.aboveThreshold, homePerKg: v },
+                      },
+                    },
+                  })
+                }
+              />
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <NumField
+                label="Minimum charge · Point (৳)"
+                value={min.point ?? 0}
+                onChange={(v) =>
+                  onChange({
+                    minimumCharge: { ...cfg.minimumCharge, [id]: { ...min, point: v } },
+                  })
+                }
+              />
+              <NumField
+                label="Minimum charge · Home (৳)"
+                value={min.home ?? 0}
+                onChange={(v) =>
+                  onChange({
+                    minimumCharge: { ...cfg.minimumCharge, [id]: { ...min, home: v } },
+                  })
+                }
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function NumField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[11px] text-slate-500">{label}</span>
+      <input
+        type="number"
+        min={0}
+        value={value}
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0))}
+        className="input mt-0.5 h-9 py-1.5 text-xs"
+      />
     </label>
   );
 }

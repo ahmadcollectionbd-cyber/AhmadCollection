@@ -17,18 +17,37 @@ export function AdminCategories() {
   const [name, setName] = useState('');
   const [nameBn, setNameBn] = useState('');
   const [image, setImage] = useState('');
+  const [advanceCharge, setAdvanceCharge] = useState<string>('');
   const [editing, setEditing] = useState<string | null>(null);
 
   function submit() {
     if (!name.trim()) return toast.error('Name required');
+    const advance = advanceCharge.trim() === '' ? undefined : Math.max(0, Number(advanceCharge) || 0);
     if (editing) {
-      updateCategory(editing, { name: name.trim(), nameBn: nameBn.trim() || undefined, image: image.trim() || undefined, slug: slugify(name) });
+      updateCategory(editing, {
+        name: name.trim(),
+        nameBn: nameBn.trim() || undefined,
+        image: image.trim() || undefined,
+        slug: slugify(name),
+        advanceDeliveryCharge: advance,
+      });
       toast.success('Category updated');
     } else {
-      addCategory({ id: `cat-${Date.now()}`, name: name.trim(), nameBn: nameBn.trim() || undefined, image: image.trim() || undefined, slug: slugify(name) });
+      addCategory({
+        id: `cat-${Date.now()}`,
+        name: name.trim(),
+        nameBn: nameBn.trim() || undefined,
+        image: image.trim() || undefined,
+        slug: slugify(name),
+        advanceDeliveryCharge: advance,
+      });
       toast.success('Category created');
     }
-    setName(''); setNameBn(''); setImage(''); setEditing(null);
+    setName('');
+    setNameBn('');
+    setImage('');
+    setAdvanceCharge('');
+    setEditing(null);
   }
 
   return (
@@ -50,6 +69,24 @@ export function AdminCategories() {
               Image (upload or paste URL)
             </label>
             <ImageInput value={image} onChange={setImage} folder="categories" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label mb-1 block text-xs uppercase tracking-wider text-slate-500">
+              Advance delivery charge (BDT, optional)
+            </label>
+            <input
+              className="input"
+              type="number"
+              min={0}
+              placeholder="e.g. 100"
+              value={advanceCharge}
+              onChange={(e) => setAdvanceCharge(e.target.value)}
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Customer pays this upfront via bKash/Nagad before the order is
+              confirmed; the rest is COD. Per-product override on the product
+              form takes priority over this category default.
+            </p>
           </div>
           <button onClick={submit} className="btn-primary sm:col-span-2 sm:justify-self-end">
             <FiPlus className="h-4 w-4" />
@@ -76,6 +113,9 @@ export function AdminCategories() {
                       setName(c.name);
                       setNameBn(c.nameBn || '');
                       setImage(c.image || '');
+                      setAdvanceCharge(
+                        typeof c.advanceDeliveryCharge === 'number' ? String(c.advanceDeliveryCharge) : '',
+                      );
                     }}
                     className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
                   >

@@ -50,6 +50,7 @@ export function AdminProducts() {
   const [minOrderKg, setMinOrderKg] = useState<number>(5);
   const [weightTiers, setWeightTiers] = useState<WeightTier[]>([]);
   const [crateOptions, setCrateOptions] = useState<CrateOption[]>([]);
+  const [advanceCharge, setAdvanceCharge] = useState<string>('');
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -66,6 +67,7 @@ export function AdminProducts() {
     setMinOrderKg(5);
     setWeightTiers([]);
     setCrateOptions([]);
+    setAdvanceCharge('');
     reset({
       name: '',
       description: '',
@@ -88,6 +90,9 @@ export function AdminProducts() {
     setMinOrderKg(p.minOrderKg ?? 5);
     setWeightTiers(p.weightTiers ?? []);
     setCrateOptions(p.crateOptions ?? []);
+    setAdvanceCharge(
+      typeof p.advanceDeliveryCharge === 'number' ? String(p.advanceDeliveryCharge) : '',
+    );
     reset({
       name: p.name,
       description: p.description,
@@ -160,6 +165,8 @@ export function AdminProducts() {
       isFood && crateOptions.length > 0
         ? crateOptions.filter((c) => c.label.trim().length > 0 && c.price >= 0)
         : undefined;
+    const finalAdvance =
+      advanceCharge.trim() === '' ? undefined : Math.max(0, Number(advanceCharge) || 0);
 
     if (editing) {
       const newSlug = slugify(values.name);
@@ -178,6 +185,7 @@ export function AdminProducts() {
         minOrderKg: finalMinKg,
         weightTiers: finalTiers,
         crateOptions: finalCrates,
+        advanceDeliveryCharge: finalAdvance,
         featured: values.featured,
         bestseller: values.bestseller,
       });
@@ -204,6 +212,7 @@ export function AdminProducts() {
         minOrderKg: finalMinKg,
         weightTiers: finalTiers,
         crateOptions: finalCrates,
+        advanceDeliveryCharge: finalAdvance,
         featured: values.featured,
         bestseller: values.bestseller,
         createdAt: Date.now(),
@@ -727,6 +736,23 @@ export function AdminProducts() {
                   </div>
                   <p className="text-[11px] text-slate-500">Drop image files or paste a URL and press Enter. First image is the cover.</p>
                 </div>
+              </div>
+
+              <div>
+                <label className="label">Advance delivery charge (BDT, optional override)</label>
+                <input
+                  className="input mt-1"
+                  type="number"
+                  min={0}
+                  placeholder="Leave empty to use the category default"
+                  value={advanceCharge}
+                  onChange={(e) => setAdvanceCharge(e.target.value)}
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Customer pays this upfront via bKash/Nagad before the order is
+                  confirmed; balance is COD on delivery. Overrides the category's
+                  advance charge for this product only.
+                </p>
               </div>
 
               <div className="flex gap-4 text-sm">
