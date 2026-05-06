@@ -386,7 +386,10 @@ export function Checkout() {
           <aside className="card sticky top-24 h-fit p-5">
             <h2 className="font-display text-sm font-bold uppercase tracking-wider">Order summary</h2>
             <ul className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
-              {items.map((it) => (
+              {items.map((it) => {
+                const isPerKg = it.productType === 'food' && typeof it.weightKg === 'number';
+                const lineTotal = it.price * it.quantity + (it.cratePrice ?? 0);
+                return (
                 <li key={`${it.productId}|${it.variantId ?? ''}`} className="flex items-center gap-3 text-sm">
                   <SafeImage src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
@@ -396,11 +399,17 @@ export function Checkout() {
                         <span className="ml-1 text-xs text-slate-500">· {it.variantLabel}</span>
                       )}
                     </div>
-                    <div className="text-xs text-slate-500">× {it.quantity}</div>
+                    <div className="text-xs text-slate-500">
+                      {isPerKg ? `${it.quantity} kg @ ${formatBDT(it.price)}/kg` : `× ${it.quantity}`}
+                      {it.crateLabel && (
+                        <span className="ml-1 text-amber-600 dark:text-amber-400">+ {it.crateLabel} {formatBDT(it.cratePrice ?? 0)}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-sm font-semibold">{formatBDT(it.price * it.quantity)}</div>
+                  <div className="text-sm font-semibold">{formatBDT(lineTotal)}</div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
             <dl className="mt-4 space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-slate-500">Subtotal</dt><dd>{formatBDT(subtotal)}</dd></div>

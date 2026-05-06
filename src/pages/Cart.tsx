@@ -58,6 +58,8 @@ export function Cart() {
             <ul className="space-y-3">
               {items.map((it) => {
                 const key = cartLineKey(it);
+                const isPerKg = it.productType === 'food' && typeof it.weightKg === 'number';
+                const lineTotal = it.price * it.quantity + (it.cratePrice ?? 0);
                 return (
                   <li key={key} className="card flex gap-4 p-3">
                     <Link to={`/product/${it.slug}`} className="shrink-0">
@@ -65,16 +67,27 @@ export function Cart() {
                     </Link>
                     <div className="flex flex-1 flex-col">
                       <Link to={`/product/${it.slug}`} className="line-clamp-2 text-sm font-semibold hover:text-brand-600">{it.name}</Link>
-                      {it.variantLabel && (
-                        <span className="mt-0.5 inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                          {it.variantLabel}
-                        </span>
-                      )}
-                      <div className="mt-1 text-sm font-bold text-brand-700 dark:text-brand-300">{formatBDT(it.price)}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        {it.variantLabel && (
+                          <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                            {it.variantLabel}
+                          </span>
+                        )}
+                        {it.crateLabel && (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+                            {it.crateLabel} +{formatBDT(it.cratePrice ?? 0)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-sm font-bold text-brand-700 dark:text-brand-300">
+                        {formatBDT(it.price)}{isPerKg ? ' / kg' : ''}
+                      </div>
                       <div className="mt-auto flex items-center justify-between">
                         <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-white/10">
                           <button onClick={() => setQty(key, it.quantity - 1)} className="px-3 py-1.5">−</button>
-                          <span className="min-w-8 text-center text-sm font-semibold">{it.quantity}</span>
+                          <span className="min-w-12 text-center text-sm font-semibold">
+                            {it.quantity}{isPerKg ? ' kg' : ''}
+                          </span>
                           <button onClick={() => setQty(key, it.quantity + 1)} className="px-3 py-1.5">+</button>
                         </div>
                         <button onClick={() => remove(key)} className="text-xs text-accent-500 hover:underline inline-flex items-center gap-1">
@@ -83,7 +96,7 @@ export function Cart() {
                         </button>
                       </div>
                     </div>
-                    <div className="hidden sm:block text-right text-sm font-bold">{formatBDT(it.price * it.quantity)}</div>
+                    <div className="hidden sm:block text-right text-sm font-bold">{formatBDT(lineTotal)}</div>
                   </li>
                 );
               })}

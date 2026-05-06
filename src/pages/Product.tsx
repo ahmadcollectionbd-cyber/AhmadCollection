@@ -5,7 +5,7 @@ import { FiCheck, FiHeart, FiPhone, FiShoppingCart, FiStar } from 'react-icons/f
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../stores/dataStore';
-import { useCartStore } from '../stores/cartStore';
+import { effectivePricePerKg, useCartStore } from '../stores/cartStore';
 import { useWishlistStore } from '../stores/wishlistStore';
 import { useAuthStore } from '../stores/authStore';
 import { useLangStore } from '../stores/langStore';
@@ -34,8 +34,11 @@ export function Product() {
 
   const product = useMemo(() => products.find((p) => p.slug === slug), [products, slug]);
   const [imageIdx, setImageIdx] = useState(0);
-  const [qty, setQty] = useState(1);
+  // `qtyOverride === null` means "use the per-product default" (1 unit, or
+  // `minOrderKg` for per-kg food). Avoids a setState-in-effect cycle.
+  const [qtyOverride, setQtyOverride] = useState<number | null>(null);
   const [variantId, setVariantId] = useState<string | undefined>(undefined);
+  const [crateId, setCrateId] = useState<string | undefined>(undefined);
   const [tab, setTab] = useState<'description' | 'specifications' | 'reviews'>('description');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -55,12 +58,25 @@ export function Product() {
   const selectedVariant = hasVariants
     ? variants.find((v) => v.id === variantId)
     : undefined;
-  const effectivePrice = selectedVariant?.price ?? product.price;
+  const isPerKg = !!product.pricedPerKg;
+  const minKg = product.minOrderKg ?? 1;
+  const qty = qtyOverride ?? (isPerKg ? minKg : 1);
+  const setQty = setQtyOverride;
+
+  const effectivePrice = isPerKg
+    ? effectivePricePerKg(product, qty)
+    : (selectedVariant?.price ?? product.price);
   const effectiveCompare = selectedVariant?.comparePrice ?? product.comparePrice;
   const effectiveStock = hasVariants
     ? selectedVariant?.stock ?? 0
     : product.stock;
   const requiresVariantPick = hasVariants && !selectedVariant;
+
+  const crateOptions = product.crateOptions ?? [];
+  const selectedCrate = crateOptions.find((c) => c.id === crateId);
+  const lineSubtotal = isPerKg
+    ? effectivePrice * qty + (selectedCrate?.price ?? 0)
+    : effectivePrice * qty;
 
   const productReviews = reviews.filter((r) => r.productId === product.id);
   const related = products.filter((p) => p.id !== product.id && p.categoryIds.some((c) => product.categoryIds.includes(c))).slice(0, 4);
@@ -150,11 +166,39 @@ export function Product() {
             </div>
 
             <div className="mt-5 flex items-baseline gap-3">
-              <span className="text-3xl font-extrabold text-brand-700 dark:text-brand-300">{formatBDT(effectivePrice)}</span>
+              <span className="text-3xl font-extrabold text-brand-700 dark:text-brand-300">
+                {formatBDT(effectivePrice)}
+                {isPerKg && <span className="ml-1 text-base font-bold text-slate-500">/ kg</span>}
+              </span>
               {effectiveCompare && effectiveCompare > effectivePrice && (
                 <span className="text-base text-slate-400 line-through">{formatBDT(effectiveCompare)}</span>
               )}
+              {isPerKg && qty > 0 && (
+                <span className="ml-auto text-xs text-slate-500">
+                  {qty} kg = <strong className="text-slate-700 dark:text-slate-200">{formatBDT(effectivePrice * qty)}</strong>
+                </span>
+              )}
             </div>
+
+            {isPerKg && (product.weightTiers?.length ?? 0) > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {product.weightTiers!
+                  .slice()
+                  .sort((a, b) => a.minKg - b.minKg)
+                  .map((tier) => (
+                    <span
+                      key={tier.minKg}
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                        qty >= tier.minKg
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      {tier.minKg}+ kg → {formatBDT(tier.pricePerKg)}/kg
+                    </span>
+                  ))}
+              </div>
+            )}
 
             <p className={`mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300 ${lang === 'bn' && product.descriptionBn ? 'font-bn' : ''}`}>
               {lang === 'bn' && product.descriptionBn ? product.descriptionBn : product.description}
@@ -200,10 +244,30 @@ export function Product() {
             )}
 
             <div className="mt-6 flex items-center gap-2">
-              <span className="label">Quantity</span>
+              <span className="label">{isPerKg ? 'Weight (kg)' : 'Quantity'}</span>
               <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-slate-900/60">
-                <button onClick={() => setQty(Math.max(1, qty - 1))} className="px-3 py-2 text-lg leading-none">−</button>
-                <span className="min-w-8 text-center text-sm font-semibold">{qty}</span>
+                <button
+                  onClick={() => setQty(Math.max(isPerKg ? minKg : 1, qty - (isPerKg ? 1 : 1)))}
+                  className="px-3 py-2 text-lg leading-none"
+                >
+                  −
+                </button>
+                {isPerKg ? (
+                  <input
+                    type="number"
+                    min={minKg}
+                    max={effectiveStock || undefined}
+                    step={1}
+                    value={qty}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (Number.isFinite(v)) setQty(Math.max(minKg, Math.min(effectiveStock || v, v)));
+                    }}
+                    className="w-16 bg-transparent text-center text-sm font-semibold outline-none"
+                  />
+                ) : (
+                  <span className="min-w-8 text-center text-sm font-semibold">{qty}</span>
+                )}
                 <button
                   onClick={() => setQty(Math.min(effectiveStock, qty + 1))}
                   className="px-3 py-2 text-lg leading-none"
@@ -211,9 +275,57 @@ export function Product() {
                   +
                 </button>
               </div>
+              {isPerKg && minKg > 1 && (
+                <span className="text-[11px] text-slate-500">min {minKg} kg</span>
+              )}
               {(selectedVariant?.sku || product.sku) && (
                 <span className="ml-auto text-xs text-slate-500">SKU: {selectedVariant?.sku ?? product.sku}</span>
               )}
+            </div>
+
+            {crateOptions.length > 0 && (
+              <div className="mt-5 rounded-2xl border border-amber-200/60 bg-amber-50/40 p-3 dark:border-amber-500/20 dark:bg-amber-500/5">
+                <div className="flex items-center justify-between">
+                  <span className="label">Crate / কেরাত (optional)</span>
+                  {selectedCrate && (
+                    <button
+                      type="button"
+                      onClick={() => setCrateId(undefined)}
+                      className="text-[11px] font-semibold text-accent-500 hover:underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {crateOptions.map((c) => {
+                    const active = c.id === crateId;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCrateId(active ? undefined : c.id)}
+                        className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                          active
+                            ? 'border-amber-500 bg-amber-500 text-white'
+                            : 'border-slate-200 bg-white/70 hover:border-amber-400 dark:border-white/10 dark:bg-slate-900/60'
+                        }`}
+                      >
+                        {lang === 'bn' && c.labelBn ? c.labelBn : c.label}
+                        <span className="ml-1.5 opacity-80">+{formatBDT(c.price)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  Crate (kerat) is added to the order. You can also leave it empty.
+                </p>
+              </div>
+            )}
+
+            <div className="mt-4 flex items-baseline justify-between text-sm">
+              <span className="text-slate-500">Subtotal</span>
+              <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{formatBDT(lineSubtotal)}</span>
             </div>
 
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
@@ -224,7 +336,7 @@ export function Product() {
                     toast.error(product.type === 'clothing' ? 'Select a size first' : 'Select an option first');
                     return;
                   }
-                  add(product, qty, selectedVariant);
+                  add(product, qty, { variant: selectedVariant, crate: selectedCrate });
                   pixelEvent('AddToCart', {
                     content_ids: [product.id],
                     content_name: product.name,
@@ -257,7 +369,7 @@ export function Product() {
                     toast.error(product.type === 'clothing' ? 'Select a size first' : 'Select an option first');
                     return;
                   }
-                  add(product, qty, selectedVariant);
+                  add(product, qty, { variant: selectedVariant, crate: selectedCrate });
                   pixelEvent('AddToCart', {
                     content_ids: [product.id],
                     content_name: product.name,
