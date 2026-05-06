@@ -1,7 +1,36 @@
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import type { SiteSettings } from '../types';
+import type { DeliveryMode, MangoDeliveryConfig, MangoZone, SiteSettings } from '../types';
 import { db, isFirebaseConfigured } from './firebase';
 import { clearFirestoreError, reportFirestoreError } from '../stores/firestoreStatusStore';
+
+/**
+ * Steadfast Courier mango-delivery defaults pre-populated from the
+ * shop's reference rate sheet. Disabled by default — the admin needs to
+ * flip `enabled` on after reviewing the numbers.
+ */
+export const DEFAULT_MANGO_DELIVERY: MangoDeliveryConfig = {
+  enabled: false,
+  weightThresholdKg: 20,
+  zones: {
+    cityInside: {
+      belowThreshold: { pointPerKg: 13, homePerKg: 22 },
+      aboveThreshold: { pointPerKg: 12, homePerKg: 20 },
+    },
+    districtOutside: {
+      belowThreshold: { pointPerKg: 16, homePerKg: 24 },
+      aboveThreshold: { pointPerKg: 16, homePerKg: 22 },
+    },
+    upozila: {
+      belowThreshold: { pointPerKg: 18, homePerKg: 26 },
+      aboveThreshold: { pointPerKg: 16, homePerKg: 24 },
+    },
+  },
+  minimumCharge: {
+    cityInside: { point: 100, home: 120 },
+    districtOutside: { point: 120, home: 130 },
+    upozila: { point: 120, home: 130 },
+  },
+};
 
 export const DEFAULT_SETTINGS: SiteSettings = {
   brandName: 'Ahmad Collection',
@@ -20,6 +49,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   deliveryInside: 70,
   deliveryOutside: 130,
   deliveryDistricts: [],
+  mangoDelivery: DEFAULT_MANGO_DELIVERY,
   freeDeliveryAbove: 1500,
   adminSmsPhone: '01914138238',
   adminEmail: 'ahmadcollection.bd@gmail.com',
@@ -117,4 +147,53 @@ export function findDistrict(
   return settings.deliveryDistricts.find(
     (d) => d.name.toLowerCase() === lower || d.nameBn === city.trim(),
   );
+}
+
+/**
+ * Steadfast-style per-kg shipping for a mango (per-kg `food`) line.
+ * Returns the higher of (per-kg total) and (zone+mode minimum charge).
+ *
+ * NOTE: Not yet wired into `Cart.tsx` / `Checkout.tsx`. Phase D will
+ * call this to compute mango shipping; exporting it now so the helper
+ * is available alongside `computeShipping` and unit-testable.
+ */
+export function computeMangoShipping(
+  weightKg: number,
+  zone: MangoZone,
+  mode: DeliveryMode,
+  config: MangoDeliveryConfig,
+): number {
+  if (!config.enabled || weightKg <= 0) return 0;
+  const tier =
+    weightKg >= config.weightThresholdKg
+      ? config.zones[zone].aboveThreshold
+      : config.zones[zone].belowThreshold;
+  const ratePerKg = mode === 'home' ? tier.homePerKg : tier.pointPerKg;
+  const perKgTotal = Math.round(ratePerKg * weightKg);
+  const minimum = config.minimumCharge[zone][mode] ?? 0;
+  return Math.max(perKgTotal, minimum);
+}
+
+/**
+ * Resolve the advance-delivery charge for a product. Product-level value
+ * takes priority over the category default; returning `0` (set
+ * explicitly on the product) overrides an inherited category amount.
+ *
+ * Looks up the *first* category in `categoryIds` that defines an
+ * `advanceDeliveryCharge` and uses it. Returns `0` when nothing matches.
+ */
+export function resolveAdvanceCharge(
+  product: { advanceDeliveryCharge?: number; categoryIds: string[] },
+  categories: { id: string; advanceDeliveryCharge?: number }[],
+): number {
+  if (typeof product.advanceDeliveryCharge === 'number') {
+    return Math.max(0, product.advanceDeliveryCharge);
+  }
+  for (const cid of product.categoryIds ?? []) {
+    const cat = categories.find((c) => c.id === cid);
+    if (cat && typeof cat.advanceDeliveryCharge === 'number' && cat.advanceDeliveryCharge > 0) {
+      return cat.advanceDeliveryCharge;
+    }
+  }
+  return 0;
 }
