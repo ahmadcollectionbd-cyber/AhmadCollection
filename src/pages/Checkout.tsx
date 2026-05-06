@@ -22,8 +22,9 @@ import { gaEvent, pixelEvent } from '../lib/pixel';
 import { formatBDT, generateOrderId } from '../lib/utils';
 import { SafeImage } from '../components/ui/SafeImage';
 import { PaymentBrand } from '../components/payments/PaymentBrand';
-import type { Order, PaymentMethod, DeliveryZone, MangoZone, DeliveryMode } from '../types';
+import type { CartItem, Order, PaymentMethod, DeliveryZone, MangoZone, DeliveryMode } from '../types';
 import { useTranslation } from 'react-i18next';
+import { BD_GEO } from '../data/bdGeo';
 
 const BD_PHONE_REGEX = /^(?:\+?880|0)?1[3-9]\d{8}$/;
 
@@ -37,19 +38,28 @@ const checkoutSchema = z.object({
     }),
   email: z.string().email('Valid email required').optional().or(z.literal('')),
   address: z.string().min(5, 'Address required'),
+  division: z.string().optional(),
+  district: z.string().optional(),
+  thana: z.string().optional(),
   city: z.string().optional(),
   area: z.string().optional(),
   note: z.string().optional(),
   paymentRef: z.string().optional(),
+  couponCode: z.string().optional(),
 });
 
 type CheckoutForm = z.infer<typeof checkoutSchema>;
 
 export function Checkout() {
   const { t } = useTranslation();
-  const { state } = useLocation() as { state?: { couponCode?: string } };
-  const items = useCartStore((s) => s.items);
-  const subtotal = useCartStore((s) => s.subtotal());
+  const { state } = useLocation() as { state?: { couponCode?: string; buyNowItem?: CartItem } };
+  const cartItems = useCartStore((s) => s.items);
+  // If "Buy Now" was used, only checkout that single item; otherwise use full cart.
+  const isBuyNow = !!state?.buyNowItem;
+  const items = isBuyNow ? [state.buyNowItem!] : cartItems;
+  const subtotal = isBuyNow
+    ? items.reduce((acc, it) => acc + it.price * it.quantity + (it.cratePrice ?? 0), 0)
+    : useCartStore.getState().subtotal();
   const clear = useCartStore((s) => s.clear);
   const coupons = useDataStore((s) => s.coupons);
   const products = useDataStore((s) => s.products);
@@ -64,9 +74,12 @@ export function Checkout() {
   const [zone, setZone] = useState<DeliveryZone>('inside');
   const [mangoZone, setMangoZone] = useState<MangoZone>('cityInside');
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('point');
+  const [couponInput, setCouponInput] = useState(state?.couponCode ?? '');
+  const [appliedCoupon, setAppliedCoupon] = useState(state?.couponCode ?? '');
+  const [orderImages, setOrderImages] = useState<string[]>([]);
+  const [uploadingOrderImg, setUploadingOrderImg] = useState(false);
 
-  const couponCode = state?.couponCode;
-  const coupon = couponCode ? coupons.find((c) => c.code === couponCode) : null;
+  const coupon = appliedCoupon ? coupons.find((c) => c.code === appliedCoupon && c.active) : null;
   const discount = coupon
     ? coupon.type === 'percent'
       ? Math.round((subtotal * coupon.value) / 100)
@@ -95,9 +108,40 @@ export function Checkout() {
   const standardSubtotal = subtotal - mangoSubtotal;
   const hasMango = mangoKg > 0 && (settings.mangoDelivery?.enabled ?? false);
 
+  const watchedDivision = watch('division');
+  const watchedDistrict = watch('district');
+  const watchedThana = watch('thana');
+
+  // Derive available districts/thanas from the selected division/district
+  const selectedDivision = BD_GEO.find((d) => d.name === watchedDivision);
+  const availableDistricts = selectedDivision?.districts ?? [];
+  const selectedDistrictObj = availableDistricts.find((d) => d.name === watchedDistrict);
+  const availableThanas = selectedDistrictObj?.thanas ?? [];
+
+  // Auto-detect delivery zone based on selected district
+  useEffect(() => {
+    if (!watchedDistrict) return;
+    const baseCityName = (settings.deliveryCityName || 'Dhaka').trim().toLowerCase();
+    const districtLower = watchedDistrict.trim().toLowerCase();
+    // If the district matches the base city, it's "inside", otherwise "outside"
+    if (districtLower === baseCityName) {
+      setZone('inside');
+    } else {
+      setZone('outside');
+    }
+    // Auto-detect mango zone based on whether it's in the city, a district, or upazila
+    if (districtLower === baseCityName) {
+      setMangoZone('cityInside');
+    } else if (watchedThana && !watchedThana.toLowerCase().includes('sadar')) {
+      setMangoZone('upozila');
+    } else {
+      setMangoZone('districtOutside');
+    }
+  }, [watchedDistrict, watchedThana, settings.deliveryCityName]);
+
   // We `watch` the city so the visible shipping fee updates the moment the
   // customer types a known district (e.g. "Khulna").
-  const watchedCity = watch('city');
+  const watchedCity = watchedDistrict || watch('city');
   const standardShipping = useMemo(
     () =>
       standardSubtotal > 0
@@ -220,8 +264,11 @@ export function Checkout() {
         name: values.name,
         phone: values.phone,
         address: values.address,
-        city: values.city,
+        city: values.district || values.city,
         area: values.area,
+        division: values.division,
+        district: values.district,
+        thana: values.thana,
         note: values.note,
         zone,
         ...(hasMango ? { mangoZone, deliveryMode } : {}),
@@ -231,7 +278,8 @@ export function Checkout() {
       shipping,
       discount,
       total,
-      couponCode: coupon?.code,
+      couponCode: appliedCoupon || undefined,
+      ...(orderImages.length > 0 ? { orderImages } : {}),
       paymentMethod,
       paymentRef: values.paymentRef,
       status: 'pending',
@@ -304,7 +352,7 @@ export function Checkout() {
       })
       .catch(() => {});
 
-    clear();
+    if (!isBuyNow) clear();
     toast.success(t('checkout.success'));
     navigate(`/order/${shortId}`, { replace: true });
   }
@@ -353,31 +401,102 @@ export function Checkout() {
                 <textarea className="input mt-1 min-h-[70px]" placeholder="House, road, area" {...register('address')} />
                 {errors.address && <p className="mt-1 text-xs text-accent-500">{errors.address.message}</p>}
               </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="label">{t('checkout.city')}</label>
-                  <input
-                    className="input mt-1"
-                    list="checkout-districts"
-                    placeholder={settings.deliveryCityName || 'Dhaka'}
-                    {...register('city')}
-                  />
-                  <datalist id="checkout-districts">
-                    {(settings.deliveryDistricts ?? []).map((d) => (
-                      <option key={d.name} value={d.name}>
-                        {d.nameBn ? `${d.nameBn} — ${formatBDT(d.fee)}` : `${formatBDT(d.fee)}`}
-                      </option>
+                  <label className="label">বিভাগ / Division</label>
+                  <select className="input mt-1" {...register('division')}>
+                    <option value="">Select division</option>
+                    {BD_GEO.map((div) => (
+                      <option key={div.name} value={div.name}>{div.nameBn} ({div.name})</option>
                     ))}
-                  </datalist>
+                  </select>
                 </div>
                 <div>
-                  <label className="label">{t('checkout.area')}</label>
-                  <input className="input mt-1" placeholder="Mirpur" {...register('area')} />
+                  <label className="label">জেলা / District</label>
+                  <select className="input mt-1" {...register('district')} disabled={!watchedDivision}>
+                    <option value="">Select district</option>
+                    {availableDistricts.map((d) => (
+                      <option key={d.name} value={d.name}>{d.nameBn} ({d.name})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">থানা / Thana</label>
+                  <select className="input mt-1" {...register('thana')} disabled={!watchedDistrict}>
+                    <option value="">Select thana</option>
+                    {availableThanas.map((th) => (
+                      <option key={th.name} value={th.name}>{th.nameBn} ({th.name})</option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="label">{t('checkout.area')}</label>
+                  <input className="input mt-1" placeholder="Mirpur / local area" {...register('area')} />
+                </div>
+                <div>
+                  <label className="label">{t('checkout.note')}</label>
+                  <input className="input mt-1" placeholder="e.g. Call before delivery" {...register('note')} />
+                </div>
+              </div>
+
+              {/* Image upload below shipping address */}
               <div className="mt-3">
-                <label className="label">{t('checkout.note')}</label>
-                <input className="input mt-1" placeholder="e.g. Call before delivery" {...register('note')} />
+                <label className="label">ছবি সংযুক্ত করুন / Attach image (optional)</label>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {orderImages.map((url, i) => (
+                    <div key={url + i} className="group relative">
+                      <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setOrderImages((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-rose-500 p-0.5 text-white shadow group-hover:block"
+                      >
+                        <svg className="h-3 w-3" viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="2" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                  <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-500 hover:border-brand-500 hover:text-brand-600 dark:border-white/10">
+                    {uploadingOrderImg ? '…' : '+ Image'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUploadingOrderImg(true);
+                        try {
+                          const imgbbKey = settings.imgbbApiKey;
+                          if (!imgbbKey) {
+                            toast.error('Image upload not configured');
+                            return;
+                          }
+                          const formData = new FormData();
+                          formData.append('image', file);
+                          const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: 'POST', body: formData });
+                          const data = await res.json();
+                          if (data.success) {
+                            setOrderImages((prev) => [...prev, data.data.url]);
+                          } else {
+                            toast.error('Upload failed');
+                          }
+                        } catch {
+                          toast.error('Upload failed');
+                        } finally {
+                          setUploadingOrderImg(false);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Attach any relevant images (e.g. address screenshot, product reference)
+                </p>
               </div>
 
               {standardSubtotal > 0 && (
@@ -685,12 +804,63 @@ export function Checkout() {
                 );
               })}
             </ul>
+            {/* Coupon input */}
+            <div className="mt-3">
+              <label className="label text-xs">Coupon code</label>
+              <div className="mt-1 flex gap-1.5">
+                <input
+                  type="text"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  placeholder="Enter code"
+                  className="input flex-1 py-1.5 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = couponInput.trim();
+                    if (!code) return;
+                    const found = coupons.find((c) => c.code === code && c.active);
+                    if (found) {
+                      if (found.minOrder && subtotal < found.minOrder) {
+                        toast.error(`Minimum order ${formatBDT(found.minOrder)} required`);
+                        return;
+                      }
+                      setAppliedCoupon(code);
+                      toast.success('Coupon applied!');
+                    } else {
+                      toast.error('Invalid or expired coupon');
+                    }
+                  }}
+                  className="btn-primary px-3 py-1.5 text-xs"
+                >
+                  Apply
+                </button>
+              </div>
+              {coupon && (
+                <div className="mt-1.5 flex items-center justify-between rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  <span>
+                    {coupon.code}: {coupon.type === 'percent' ? `${coupon.value}% off` : `${formatBDT(coupon.value)} off`}
+                  </span>
+                  <button type="button" onClick={() => { setAppliedCoupon(''); setCouponInput(''); }} className="font-bold text-accent-500 hover:underline">Remove</button>
+                </div>
+              )}
+            </div>
+
+            {/* Charge breakdown */}
             <dl className="mt-4 space-y-1.5 text-sm">
               <div className="flex justify-between"><dt className="text-slate-500">Subtotal</dt><dd>{formatBDT(subtotal)}</dd></div>
+              {items.some((it) => it.cratePrice && it.cratePrice > 0) && (
+                <div className="flex justify-between">
+                  <dt className="text-slate-500">Crate / box</dt>
+                  <dd>{formatBDT(items.reduce((acc, it) => acc + (it.cratePrice ?? 0), 0))}</dd>
+                </div>
+              )}
               {standardSubtotal > 0 && (
                 <div className="flex justify-between">
                   <dt className="text-slate-500">
                     Shipping{hasMango ? ' (standard)' : ''}
+                    {watchedDistrict && <span className="ml-1 text-[10px]">({watchedDistrict})</span>}
                   </dt>
                   <dd>{standardShipping === 0 ? 'Free' : formatBDT(standardShipping)}</dd>
                 </div>
@@ -707,7 +877,7 @@ export function Checkout() {
                 <div className="flex justify-between"><dt className="text-slate-500">Shipping</dt><dd>Free</dd></div>
               )}
               {discount > 0 && (
-                <div className="flex justify-between"><dt className="text-slate-500">Discount</dt><dd className="text-accent-600">- {formatBDT(discount)}</dd></div>
+                <div className="flex justify-between"><dt className="text-slate-500">Discount {coupon && <span className="text-[10px]">({coupon.code})</span>}</dt><dd className="text-accent-600">- {formatBDT(discount)}</dd></div>
               )}
               <div className="border-t border-slate-200/70 my-2 dark:border-white/10" />
               <div className="flex items-baseline justify-between text-base font-bold">
