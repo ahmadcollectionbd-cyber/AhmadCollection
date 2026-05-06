@@ -175,6 +175,18 @@ export interface Product {
   slug: string;
   description: string;
   descriptionBn?: string;
+  /**
+   * Optional banner image rendered at the top of the description tab on the
+   * product page (e.g. "How it's made" hero, ingredient shot). Falls back to
+   * none when blank.
+   */
+  descriptionImageTop?: string;
+  /**
+   * Optional banner image rendered at the bottom of the description tab
+   * (e.g. usage instructions, certificate, packaging photo). Falls back to
+   * none when blank.
+   */
+  descriptionImageBottom?: string;
   /** Base price (BDT). For per-kg `food` products this is price per 1 kg. */
   price: number;
   comparePrice?: number;

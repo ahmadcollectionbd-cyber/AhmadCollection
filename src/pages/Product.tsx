@@ -423,19 +423,39 @@ export function Product() {
           </div>
           <div className="card mt-4 p-6 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {tab === 'description' && (
-              <p className={lang === 'bn' && product.descriptionBn ? 'font-bn' : ''}>
-                {lang === 'bn' && product.descriptionBn ? product.descriptionBn : product.description}
-              </p>
+              <div className="space-y-4">
+                {product.descriptionImageTop && (
+                  <SafeImage
+                    src={product.descriptionImageTop}
+                    alt={`${product.name} — top illustration`}
+                    className="w-full rounded-2xl object-cover"
+                  />
+                )}
+                <p className={lang === 'bn' && product.descriptionBn ? 'font-bn whitespace-pre-line' : 'whitespace-pre-line'}>
+                  {lang === 'bn' && product.descriptionBn ? product.descriptionBn : product.description}
+                </p>
+                {product.descriptionImageBottom && (
+                  <SafeImage
+                    src={product.descriptionImageBottom}
+                    alt={`${product.name} — bottom illustration`}
+                    className="w-full rounded-2xl object-cover"
+                  />
+                )}
+              </div>
             )}
             {tab === 'specifications' && (
-              <dl className="grid gap-3 sm:grid-cols-2">
-                {product.specifications.map((s) => (
-                  <div key={s.key} className="flex justify-between gap-4 rounded-xl bg-slate-50 px-4 py-2.5 dark:bg-slate-800/40">
-                    <dt className="font-medium text-slate-700 dark:text-slate-200">{s.key}</dt>
-                    <dd className="text-slate-500">{s.value}</dd>
-                  </div>
-                ))}
-              </dl>
+              product.specifications.length === 0 ? (
+                <p className="text-slate-500">No specifications yet.</p>
+              ) : (
+                <dl className="grid gap-3 sm:grid-cols-2">
+                  {product.specifications.map((s, i) => (
+                    <div key={`${s.key}-${i}`} className="flex justify-between gap-4 rounded-xl bg-slate-50 px-4 py-2.5 dark:bg-slate-800/40">
+                      <dt className="font-medium text-slate-700 dark:text-slate-200">{s.key}</dt>
+                      <dd className="text-slate-500">{s.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )
             )}
             {tab === 'reviews' && (
               <div>
