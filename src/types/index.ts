@@ -6,7 +6,31 @@ export type OrderStatus =
   | 'returned'
   | 'cancelled';
 
-export type PaymentMethod = 'bkash' | 'nagad' | 'cod';
+export type PaymentMethod = 'bkash' | 'nagad' | 'bank' | 'cod';
+
+/**
+ * Per-method on/off toggles. When a method is `false` it is hidden from the
+ * Checkout page. Stored on `SiteSettings.paymentMethodsEnabled`.
+ */
+export interface PaymentMethodsEnabled {
+  bkash: boolean;
+  nagad: boolean;
+  bank: boolean;
+  cod: boolean;
+}
+
+/**
+ * Manual bank-transfer details shown to the customer on Checkout when the
+ * `bank` payment method is selected. All fields are optional so the admin
+ * can leave the section empty before they're ready to accept transfers.
+ */
+export interface BankAccountDetails {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  branch?: string;
+  routingNumber?: string;
+}
 
 export type Lang = 'en' | 'bn';
 
@@ -75,6 +99,8 @@ export interface Review {
   productId: string;
   userId: string;
   userName: string;
+  /** Optional contact phone — guests can leave it so admins can follow up. */
+  userPhone?: string;
   rating: number;
   comment: string;
   createdAt: number;
@@ -275,8 +301,8 @@ export interface Order {
    * `total`; the customer pays only `total - advancePaid` on delivery.
    */
   advancePaid?: number;
-  /** Payment channel used for the advance (bkash / nagad). */
-  advanceMethod?: 'bkash' | 'nagad';
+  /** Payment channel used for the advance (bkash / nagad / bank). */
+  advanceMethod?: 'bkash' | 'nagad' | 'bank';
   /** Customer-provided transaction reference for the advance. */
   advanceRef?: string;
   createdAt: number;
@@ -380,6 +406,10 @@ export interface SiteSettings {
   bkashNumber: string;
   /** Personal Nagad number used for manual transfers. */
   nagadNumber: string;
+  /** Per-method on/off toggles for the Checkout payment selector. */
+  paymentMethodsEnabled?: PaymentMethodsEnabled;
+  /** Optional manual bank-transfer details shown when `bank` is selected. */
+  bankAccount?: BankAccountDetails;
   /**
    * Editable home-city label used in the delivery zone copy (defaults to
    * `Dhaka`). The admin can change this to "Khulna" / "Chattogram" / any

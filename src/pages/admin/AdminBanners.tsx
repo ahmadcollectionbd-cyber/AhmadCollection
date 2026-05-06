@@ -4,7 +4,7 @@ import { FiArrowDown, FiArrowUp, FiEdit2, FiImage, FiPlus, FiTrash2, FiUpload, F
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
 import { uploadBannerImage } from '../../lib/upload';
-import type { Banner, ImagePosition } from '../../types';
+import type { Banner, Category, ImagePosition } from '../../types';
 import { PageHeader } from '../../components/admin/PageHeader';
 
 const IMAGE_POSITIONS: ImagePosition[] = [
@@ -34,6 +34,7 @@ const blankBanner = (): Banner => ({
 
 export function AdminBanners() {
   const banners = useDataStore((s) => s.banners);
+  const categories = useDataStore((s) => s.categories);
   const addBanner = useDataStore((s) => s.addBanner);
   const updateBanner = useDataStore((s) => s.updateBanner);
   const removeBanner = useDataStore((s) => s.removeBanner);
@@ -258,15 +259,11 @@ export function AdminBanners() {
                 placeholder="Shop now"
               />
             </label>
-            <label className="block">
-              <span className="label">Button link</span>
-              <input
-                className="input mt-1"
-                value={editing.ctaHref ?? ''}
-                onChange={(e) => setEditing({ ...editing, ctaHref: e.target.value })}
-                placeholder="/shop or /shop?cat=mango"
-              />
-            </label>
+            <BannerLinkPicker
+              value={editing.ctaHref ?? ''}
+              categories={categories}
+              onChange={(v) => setEditing({ ...editing, ctaHref: v })}
+            />
 
             <label className="block">
               <span className="label">Order (lower = first)</span>
@@ -367,5 +364,76 @@ export function AdminBanners() {
         )}
       </ul>
     </>
+  );
+}
+
+/**
+ * Banner CTA target picker. The link box used to be a free-text input; now
+ * the admin chooses from `No link` / `Shop home` / a category / `Custom URL`.
+ * Custom URL keeps backwards-compat with banners pointing to internal slugs
+ * or external sites (e.g. promo landing pages).
+ */
+function BannerLinkPicker({
+  value,
+  categories,
+  onChange,
+}: {
+  value: string;
+  categories: Category[];
+  onChange: (v: string) => void;
+}) {
+  const trimmed = value.trim();
+  const presetValues = new Set<string>([
+    '',
+    '/shop',
+    ...categories.map((c) => `/shop?cat=${c.slug}`),
+  ]);
+  const isCustom = trimmed !== '' && !presetValues.has(trimmed);
+  const [mode, setMode] = useState<'preset' | 'custom'>(
+    isCustom ? 'custom' : 'preset',
+  );
+  const selectValue = mode === 'custom' ? '__custom__' : trimmed;
+
+  return (
+    <div className="space-y-2">
+      <label className="block">
+        <span className="label">Button link</span>
+        <select
+          className="input mt-1"
+          value={selectValue}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === '__custom__') {
+              setMode('custom');
+              if (!isCustom) onChange('');
+            } else {
+              setMode('preset');
+              onChange(v);
+            }
+          }}
+        >
+          <option value="">No link (just show banner)</option>
+          <option value="/shop">Shop home (/shop)</option>
+          {categories.map((c) => (
+            <option key={c.id} value={`/shop?cat=${c.slug}`}>
+              Category — {c.name}
+            </option>
+          ))}
+          <option value="__custom__">Custom URL…</option>
+        </select>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Pick a category to send shoppers there, or use Custom URL for an
+          external promo page.
+        </p>
+      </label>
+      {mode === 'custom' && (
+        <input
+          className="input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://example.com/promo or /shop?tag=eid"
+        />
+      )}
+    </div>
   );
 }

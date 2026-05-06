@@ -198,8 +198,19 @@ export const useDataStore = create<DataState>()(
         });
         if (isFirebaseConfigured) {
           await addReviewDoc(r);
-          const updated = get().products.find((p) => p.id === r.productId);
-          if (updated) await upsertProductDoc(updated);
+          // The product's rating/reviewsCount can only be patched by admins
+          // (per Firestore rules). For guest + regular-user reviews this
+          // call will permission-deny — that's expected. Swallow it so the
+          // review still completes successfully; the next time an admin
+          // edits the product the rolled-up counts will be persisted.
+          try {
+            const updated = get().products.find((p) => p.id === r.productId);
+            if (updated) await upsertProductDoc(updated);
+          } catch (err) {
+            if (typeof console !== 'undefined') {
+              console.warn('Could not roll up review counts onto product:', err);
+            }
+          }
         }
       },
 

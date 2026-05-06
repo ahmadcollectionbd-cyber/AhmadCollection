@@ -17,6 +17,13 @@ import {
 import type { SiteSettings } from '../../types';
 import { ImageInput } from '../../components/ui/ImageInput';
 import { PageHeader } from '../../components/admin/PageHeader';
+import {
+  BkashBrand,
+  NagadBrand,
+  BankBrand,
+  CodBrand,
+} from '../../components/payments/PaymentBrand';
+import type { BankAccountDetails, PaymentMethodsEnabled } from '../../types';
 
 type FormState = SiteSettings;
 
@@ -274,9 +281,11 @@ export function AdminSettings() {
           }
         />
 
-        <Section title="Payments" subtitle="Personal bKash / Nagad numbers shown on checkout.">
-          <Field label="bKash personal number" {...bind('bkashNumber')} />
-          <Field label="Nagad personal number" {...bind('nagadNumber')} />
+        <Section
+          title="Payments"
+          subtitle="Toggle each payment method on/off and configure the customer-facing details."
+        >
+          <PaymentMethodsCard form={form} setForm={setForm} />
         </Section>
 
         <Section title="Admin contact" subtitle="Where new-order alerts are sent.">
@@ -668,6 +677,191 @@ function NumField({
         className="input mt-0.5 h-9 py-1.5 text-xs"
       />
     </label>
+  );
+}
+
+const DEFAULT_PAYMENT_TOGGLES: PaymentMethodsEnabled = {
+  bkash: true,
+  nagad: true,
+  bank: false,
+  cod: true,
+};
+
+function PaymentMethodsCard({
+  form,
+  setForm,
+}: {
+  form: SiteSettings;
+  setForm: React.Dispatch<React.SetStateAction<SiteSettings>>;
+}) {
+  const toggles = form.paymentMethodsEnabled ?? DEFAULT_PAYMENT_TOGGLES;
+  const bank: BankAccountDetails =
+    form.bankAccount ?? {
+      bankName: '',
+      accountName: '',
+      accountNumber: '',
+      branch: '',
+      routingNumber: '',
+    };
+
+  function patchToggles(p: Partial<PaymentMethodsEnabled>) {
+    setForm((s) => ({
+      ...s,
+      paymentMethodsEnabled: { ...toggles, ...p },
+    }));
+  }
+  function patchBank(p: Partial<BankAccountDetails>) {
+    setForm((s) => ({
+      ...s,
+      bankAccount: { ...bank, ...p },
+    }));
+  }
+
+  const rows: {
+    key: keyof PaymentMethodsEnabled;
+    badge: React.ReactNode;
+    label: string;
+    help?: string;
+  }[] = [
+    {
+      key: 'bkash',
+      badge: <BkashBrand size={28} />,
+      label: 'bKash (Personal)',
+      help: 'Customer pays manually to your personal bKash, then enters tx ID.',
+    },
+    {
+      key: 'nagad',
+      badge: <NagadBrand size={28} />,
+      label: 'Nagad (Personal)',
+      help: 'Customer pays manually to your personal Nagad, then enters tx ID.',
+    },
+    {
+      key: 'bank',
+      badge: <BankBrand size={28} />,
+      label: 'Bank transfer',
+      help: 'Customer transfers via bank/online banking, then enters tx ID.',
+    },
+    {
+      key: 'cod',
+      badge: <CodBrand size={28} />,
+      label: 'Cash on delivery',
+      help: 'Customer pays the courier on delivery. Disabled automatically when an advance charge is required.',
+    },
+  ];
+
+  return (
+    <div className="sm:col-span-2 grid gap-3">
+      <ul className="grid gap-2">
+        {rows.map((r) => (
+          <li
+            key={r.key}
+            className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 dark:border-white/10 dark:bg-slate-900/40"
+          >
+            <div className="shrink-0">{r.badge}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold">{r.label}</div>
+              {r.help && <p className="text-[11px] text-slate-500">{r.help}</p>}
+            </div>
+            <label className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold">
+              <input
+                type="checkbox"
+                checked={!!toggles[r.key]}
+                onChange={(e) => patchToggles({ [r.key]: e.target.checked } as Partial<PaymentMethodsEnabled>)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              {toggles[r.key] ? 'Enabled' : 'Disabled'}
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <div className="grid gap-3 rounded-2xl border border-slate-200/70 bg-white/70 p-3 sm:grid-cols-2 dark:border-white/10 dark:bg-slate-900/40">
+        <div className="sm:col-span-2 text-xs uppercase tracking-widest text-slate-500">
+          bKash / Nagad numbers
+        </div>
+        <label className="block">
+          <span className="label">bKash personal number</span>
+          <input
+            className="input mt-1"
+            value={form.bkashNumber}
+            onChange={(e) => setForm((s) => ({ ...s, bkashNumber: e.target.value }))}
+            placeholder="01XXXXXXXXX"
+          />
+        </label>
+        <label className="block">
+          <span className="label">Nagad personal number</span>
+          <input
+            className="input mt-1"
+            value={form.nagadNumber}
+            onChange={(e) => setForm((s) => ({ ...s, nagadNumber: e.target.value }))}
+            placeholder="01XXXXXXXXX"
+          />
+        </label>
+      </div>
+
+      <div
+        className={
+          'grid gap-3 rounded-2xl border p-3 sm:grid-cols-2 ' +
+          (toggles.bank
+            ? 'border-blue-200/70 bg-blue-50/40 dark:border-blue-500/20 dark:bg-blue-500/5'
+            : 'border-slate-200/70 bg-white/40 opacity-70 dark:border-white/10 dark:bg-slate-900/40')
+        }
+      >
+        <div className="sm:col-span-2 flex items-center justify-between gap-2">
+          <span className="text-xs uppercase tracking-widest text-slate-500">
+            Bank transfer details
+          </span>
+          {!toggles.bank && (
+            <span className="text-[11px] text-slate-400">Method disabled — fields hidden on Checkout.</span>
+          )}
+        </div>
+        <label className="block">
+          <span className="label">Bank name</span>
+          <input
+            className="input mt-1"
+            value={bank.bankName}
+            onChange={(e) => patchBank({ bankName: e.target.value })}
+            placeholder="e.g. Dutch-Bangla Bank"
+          />
+        </label>
+        <label className="block">
+          <span className="label">Account name</span>
+          <input
+            className="input mt-1"
+            value={bank.accountName}
+            onChange={(e) => patchBank({ accountName: e.target.value })}
+            placeholder="Account holder name"
+          />
+        </label>
+        <label className="block">
+          <span className="label">Account number</span>
+          <input
+            className="input mt-1"
+            value={bank.accountNumber}
+            onChange={(e) => patchBank({ accountNumber: e.target.value })}
+            placeholder="0000-0000-0000"
+          />
+        </label>
+        <label className="block">
+          <span className="label">Branch</span>
+          <input
+            className="input mt-1"
+            value={bank.branch ?? ''}
+            onChange={(e) => patchBank({ branch: e.target.value })}
+            placeholder="e.g. Mirpur Branch"
+          />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="label">Routing number (optional)</span>
+          <input
+            className="input mt-1"
+            value={bank.routingNumber ?? ''}
+            onChange={(e) => patchBank({ routingNumber: e.target.value })}
+            placeholder="9 digits, used for online transfers"
+          />
+        </label>
+      </div>
+    </div>
   );
 }
 
