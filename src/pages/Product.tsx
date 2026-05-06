@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FaWhatsapp } from 'react-icons/fa';
 import { FiCheck, FiHeart, FiPhone, FiShoppingCart, FiStar } from 'react-icons/fi';
@@ -15,7 +15,6 @@ import { formatBDT, formatDate, callLink, whatsappLink } from '../lib/utils';
 import { ProductCard } from '../components/product/ProductCard';
 import { SEO } from '../components/seo/SEO';
 import { useTranslation } from 'react-i18next';
-import { useEffect } from 'react';
 import { gaEvent, pixelEvent } from '../lib/pixel';
 
 export function Product() {
@@ -45,6 +44,30 @@ export function Product() {
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
 
+  // Derived values — safe even if product is undefined (values just default).
+  const variants = product?.variants ?? [];
+  const hasVariants = variants.length > 0;
+  const selectedVariant = hasVariants
+    ? variants.find((v) => v.id === variantId)
+    : undefined;
+  const isPerKg = !!product?.pricedPerKg;
+  const minKg = product?.minOrderKg ?? 1;
+  const qty = qtyOverride ?? (isPerKg ? minKg : 1);
+  const setQty = setQtyOverride;
+  const crateOptions = product?.crateOptions ?? [];
+
+  // Auto-select the best matching crate for per-kg food products
+  useEffect(() => {
+    if (!isPerKg || crateOptions.length === 0) return;
+    const sorted = [...crateOptions]
+      .filter((c) => c.capacityKg)
+      .sort((a, b) => (b.capacityKg ?? 0) - (a.capacityKg ?? 0));
+    const best = sorted.find((c) => (c.capacityKg ?? 0) <= qty) ?? sorted[sorted.length - 1];
+    if (best && best.id !== crateId) {
+      setCrateId(best.id);
+    }
+  }, [qty, isPerKg, crateOptions, crateId]);
+
   if (!product) {
     return (
       <div className="section py-20 text-center">
@@ -53,17 +76,6 @@ export function Product() {
       </div>
     );
   }
-
-  // Variants drive price/stock when present (clothing sizes, food packs).
-  const variants = product.variants ?? [];
-  const hasVariants = variants.length > 0;
-  const selectedVariant = hasVariants
-    ? variants.find((v) => v.id === variantId)
-    : undefined;
-  const isPerKg = !!product.pricedPerKg;
-  const minKg = product.minOrderKg ?? 1;
-  const qty = qtyOverride ?? (isPerKg ? minKg : 1);
-  const setQty = setQtyOverride;
 
   const effectivePrice = isPerKg
     ? effectivePricePerKg(product, qty)
@@ -74,7 +86,6 @@ export function Product() {
     : product.stock;
   const requiresVariantPick = hasVariants && !selectedVariant;
 
-  const crateOptions = product.crateOptions ?? [];
   const selectedCrate = crateOptions.find((c) => c.id === crateId);
   const lineSubtotal = isPerKg
     ? effectivePrice * qty + (selectedCrate?.price ?? 0)
@@ -157,6 +168,11 @@ export function Product() {
             <h1 className={`heading mt-3 text-2xl font-extrabold sm:text-3xl ${lang === 'bn' && product.nameBn ? 'font-bn' : ''}`}>
               {lang === 'bn' && product.nameBn ? product.nameBn : product.name}
             </h1>
+            {(product.shortDescription || product.shortDescriptionBn) && (
+              <p className={`mt-2 text-sm text-slate-500 dark:text-slate-400 ${lang === 'bn' && product.shortDescriptionBn ? 'font-bn' : ''}`}>
+                {lang === 'bn' && product.shortDescriptionBn ? product.shortDescriptionBn : product.shortDescription}
+              </p>
+            )}
             <div className="mt-2 flex items-center gap-2 text-sm">
               <div className="flex items-center gap-1 text-amber-500">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -371,14 +387,30 @@ export function Product() {
                     toast.error(product.type === 'clothing' ? 'Select a size first' : 'Select an option first');
                     return;
                   }
-                  add(product, qty, { variant: selectedVariant, crate: selectedCrate });
+                  // Buy Now: navigate to checkout with just this product (don't add to cart)
+                  const buyNowItem = {
+                    productId: product.id,
+                    name: product.name,
+                    price: effectivePrice,
+                    image: product.images[0],
+                    quantity: qty,
+                    stock: effectiveStock,
+                    slug: product.slug,
+                    productType: product.type,
+                    variantId: selectedVariant?.id,
+                    variantLabel: selectedVariant?.label,
+                    weightKg: isPerKg ? qty : undefined,
+                    crateId: selectedCrate?.id,
+                    crateLabel: selectedCrate?.label,
+                    cratePrice: selectedCrate?.price,
+                  };
                   pixelEvent('AddToCart', {
                     content_ids: [product.id],
                     content_name: product.name,
                     currency: 'BDT',
                     value: effectivePrice * qty,
                   });
-                  navigate('/checkout');
+                  navigate('/checkout', { state: { buyNowItem } });
                 }}
                 className="btn-primary"
               >

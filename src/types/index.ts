@@ -175,6 +175,9 @@ export interface Product {
   slug: string;
   description: string;
   descriptionBn?: string;
+  /** Short description shown below the title on the product page. */
+  shortDescription?: string;
+  shortDescriptionBn?: string;
   /** Base price (BDT). For per-kg `food` products this is price per 1 kg. */
   price: number;
   comparePrice?: number;
@@ -261,6 +264,12 @@ export interface Address {
   address: string;
   city?: string;
   area?: string;
+  /** Selected division from BD geo dropdown. */
+  division?: string;
+  /** Selected district from BD geo dropdown. */
+  district?: string;
+  /** Selected thana/upazila from BD geo dropdown. */
+  thana?: string;
   note?: string;
   zone?: DeliveryZone;
   /**
@@ -305,6 +314,8 @@ export interface Order {
   advanceMethod?: 'bkash' | 'nagad' | 'bank';
   /** Customer-provided transaction reference for the advance. */
   advanceRef?: string;
+  /** Customer-attached images at checkout. */
+  orderImages?: string[];
   createdAt: number;
   updatedAt: number;
 }

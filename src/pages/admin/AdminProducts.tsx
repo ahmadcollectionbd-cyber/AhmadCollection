@@ -16,6 +16,7 @@ const CLOTHING_SIZE_PRESETS = ['S', 'M', 'L', 'XL', 'XXL', 'Free'] as const;
 const schema = z.object({
   name: z.string().min(2),
   description: z.string().min(10),
+  shortDescription: z.string().optional(),
   price: z.coerce.number().min(0),
   comparePrice: z.coerce.number().optional(),
   stock: z.coerce.number().min(0),
@@ -51,6 +52,7 @@ export function AdminProducts() {
   const [weightTiers, setWeightTiers] = useState<WeightTier[]>([]);
   const [crateOptions, setCrateOptions] = useState<CrateOption[]>([]);
   const [advanceCharge, setAdvanceCharge] = useState<string>('');
+  const [specifications, setSpecifications] = useState<{ key: string; value: string }[]>([]);
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -68,9 +70,11 @@ export function AdminProducts() {
     setWeightTiers([]);
     setCrateOptions([]);
     setAdvanceCharge('');
+    setSpecifications([]);
     reset({
       name: '',
       description: '',
+      shortDescription: '',
       price: 0,
       stock: 0,
       categoryId: categories[0]?.id,
@@ -93,9 +97,11 @@ export function AdminProducts() {
     setAdvanceCharge(
       typeof p.advanceDeliveryCharge === 'number' ? String(p.advanceDeliveryCharge) : '',
     );
+    setSpecifications(p.specifications ?? []);
     reset({
       name: p.name,
       description: p.description,
+      shortDescription: p.shortDescription ?? '',
       price: p.price,
       comparePrice: p.comparePrice,
       stock: p.stock,
@@ -168,12 +174,16 @@ export function AdminProducts() {
     const finalAdvance =
       advanceCharge.trim() === '' ? undefined : Math.max(0, Number(advanceCharge) || 0);
 
+    const finalShortDesc = values.shortDescription?.trim() || undefined;
+    const finalSpecs = specifications.filter((s) => s.key.trim() && s.value.trim());
     if (editing) {
       const newSlug = slugify(values.name);
       await updateProduct(editing.id, {
         name: values.name,
         slug: editing.name === values.name ? editing.slug : newSlug,
         description: values.description,
+        shortDescription: finalShortDesc,
+        specifications: finalSpecs,
         price: values.price,
         comparePrice: values.comparePrice,
         stock: aggregateStock,
@@ -197,6 +207,7 @@ export function AdminProducts() {
         slug: slugify(values.name),
         name: values.name,
         description: values.description,
+        shortDescription: finalShortDesc,
         price: values.price,
         comparePrice: values.comparePrice,
         stock: aggregateStock,
@@ -205,7 +216,7 @@ export function AdminProducts() {
         sku: `AC-${id.slice(-4).toUpperCase()}`,
         rating: 0,
         reviewsCount: 0,
-        specifications: [],
+        specifications: finalSpecs,
         type: values.type,
         variants: finalVariants,
         pricedPerKg: finalPerKg,
@@ -318,6 +329,10 @@ export function AdminProducts() {
                 <label className="label">Description</label>
                 <textarea className="input mt-1 min-h-[80px]" {...register('description')} />
                 {errors.description && <p className="mt-1 text-xs text-accent-500">{errors.description.message}</p>}
+              </div>
+              <div>
+                <label className="label">Short description <span className="text-[10px] text-slate-400">(shown below title)</span></label>
+                <input className="input mt-1" placeholder="Brief tagline for the product" {...register('shortDescription')} />
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
@@ -669,6 +684,62 @@ export function AdminProducts() {
                   </div>
                 </div>
               )}
+
+              {/* Specifications editor */}
+              <div className="rounded-2xl border border-slate-200/60 bg-slate-50/40 p-3 dark:border-white/10 dark:bg-slate-900/20">
+                <div className="flex items-center justify-between">
+                  <span className="label">Specifications</span>
+                  <button
+                    type="button"
+                    onClick={() => setSpecifications((prev) => [...prev, { key: '', value: '' }])}
+                    className="text-[11px] font-semibold text-brand-600 hover:underline"
+                  >
+                    + Add spec
+                  </button>
+                </div>
+                {specifications.length === 0 ? (
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    e.g. Weight: 500g, Material: Cotton. Shown on the product page Specifications tab.
+                  </p>
+                ) : (
+                  <div className="mt-2 grid gap-2">
+                    {specifications.map((spec, idx) => (
+                      <div key={idx} className="grid items-center gap-2 sm:grid-cols-[1fr_1fr_28px]">
+                        <input
+                          type="text"
+                          value={spec.key}
+                          placeholder="Key (e.g. Weight)"
+                          onChange={(e) =>
+                            setSpecifications((prev) =>
+                              prev.map((s, i) => (i === idx ? { ...s, key: e.target.value } : s)),
+                            )
+                          }
+                          className="input h-9 py-1.5 text-xs"
+                        />
+                        <input
+                          type="text"
+                          value={spec.value}
+                          placeholder="Value (e.g. 500g)"
+                          onChange={(e) =>
+                            setSpecifications((prev) =>
+                              prev.map((s, i) => (i === idx ? { ...s, value: e.target.value } : s)),
+                            )
+                          }
+                          className="input h-9 py-1.5 text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSpecifications((prev) => prev.filter((_, i) => i !== idx))}
+                          className="rounded-md p-1.5 text-accent-500 hover:bg-accent-500/10"
+                          aria-label="Remove spec"
+                        >
+                          <FiX className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div>
                 <label className="label">Images</label>
