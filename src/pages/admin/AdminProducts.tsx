@@ -10,6 +10,7 @@ import type { CrateOption, Product, ProductType, ProductVariant, WeightTier } fr
 import { formatBDT, slugify } from '../../lib/utils';
 import { uploadProductImage } from '../../lib/upload';
 import { PageHeader } from '../../components/admin/PageHeader';
+import { ImageInput } from '../../components/ui/ImageInput';
 
 const CLOTHING_SIZE_PRESETS = ['S', 'M', 'L', 'XL', 'XXL', 'Free'] as const;
 
@@ -51,6 +52,9 @@ export function AdminProducts() {
   const [weightTiers, setWeightTiers] = useState<WeightTier[]>([]);
   const [crateOptions, setCrateOptions] = useState<CrateOption[]>([]);
   const [advanceCharge, setAdvanceCharge] = useState<string>('');
+  const [descriptionImageTop, setDescriptionImageTop] = useState('');
+  const [descriptionImageBottom, setDescriptionImageBottom] = useState('');
+  const [specifications, setSpecifications] = useState<{ key: string; value: string }[]>([]);
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -68,6 +72,9 @@ export function AdminProducts() {
     setWeightTiers([]);
     setCrateOptions([]);
     setAdvanceCharge('');
+    setDescriptionImageTop('');
+    setDescriptionImageBottom('');
+    setSpecifications([]);
     reset({
       name: '',
       description: '',
@@ -93,6 +100,9 @@ export function AdminProducts() {
     setAdvanceCharge(
       typeof p.advanceDeliveryCharge === 'number' ? String(p.advanceDeliveryCharge) : '',
     );
+    setDescriptionImageTop(p.descriptionImageTop ?? '');
+    setDescriptionImageBottom(p.descriptionImageBottom ?? '');
+    setSpecifications(p.specifications ?? []);
     reset({
       name: p.name,
       description: p.description,
@@ -167,6 +177,11 @@ export function AdminProducts() {
         : undefined;
     const finalAdvance =
       advanceCharge.trim() === '' ? undefined : Math.max(0, Number(advanceCharge) || 0);
+    // Drop spec rows that have neither key nor value so blank rows don't
+    // litter the storefront. Values without a key are still skipped.
+    const finalSpecifications = specifications.filter((s) => s.key.trim().length > 0);
+    const finalTopImage = descriptionImageTop.trim() || undefined;
+    const finalBottomImage = descriptionImageBottom.trim() || undefined;
 
     if (editing) {
       const newSlug = slugify(values.name);
@@ -174,11 +189,14 @@ export function AdminProducts() {
         name: values.name,
         slug: editing.name === values.name ? editing.slug : newSlug,
         description: values.description,
+        descriptionImageTop: finalTopImage,
+        descriptionImageBottom: finalBottomImage,
         price: values.price,
         comparePrice: values.comparePrice,
         stock: aggregateStock,
         categoryIds: [values.categoryId],
         images,
+        specifications: finalSpecifications,
         type: values.type,
         variants: finalVariants,
         pricedPerKg: finalPerKg,
@@ -197,6 +215,8 @@ export function AdminProducts() {
         slug: slugify(values.name),
         name: values.name,
         description: values.description,
+        descriptionImageTop: finalTopImage,
+        descriptionImageBottom: finalBottomImage,
         price: values.price,
         comparePrice: values.comparePrice,
         stock: aggregateStock,
@@ -205,7 +225,7 @@ export function AdminProducts() {
         sku: `AC-${id.slice(-4).toUpperCase()}`,
         rating: 0,
         reviewsCount: 0,
-        specifications: [],
+        specifications: finalSpecifications,
         type: values.type,
         variants: finalVariants,
         pricedPerKg: finalPerKg,
@@ -318,6 +338,34 @@ export function AdminProducts() {
                 <label className="label">Description</label>
                 <textarea className="input mt-1 min-h-[80px]" {...register('description')} />
                 {errors.description && <p className="mt-1 text-xs text-accent-500">{errors.description.message}</p>}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="label">Description image — top (optional)</label>
+                  <ImageInput
+                    value={descriptionImageTop}
+                    onChange={setDescriptionImageTop}
+                    folder="products"
+                    placeholder="Image URL or upload"
+                    previewClassName="aspect-[3/2] w-full rounded-xl object-cover"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Shown above the description text on the product page.
+                  </p>
+                </div>
+                <div>
+                  <label className="label">Description image — bottom (optional)</label>
+                  <ImageInput
+                    value={descriptionImageBottom}
+                    onChange={setDescriptionImageBottom}
+                    folder="products"
+                    placeholder="Image URL or upload"
+                    previewClassName="aspect-[3/2] w-full rounded-xl object-cover"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    Shown below the description text — e.g. usage / certificate.
+                  </p>
+                </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
@@ -753,6 +801,75 @@ export function AdminProducts() {
                   confirmed; balance is COD on delivery. Overrides the category's
                   advance charge for this product only.
                 </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200/60 bg-slate-50/50 p-3 dark:border-white/10 dark:bg-slate-800/30">
+                <div className="flex items-center justify-between">
+                  <span className="label">Specifications</span>
+                  <button
+                    type="button"
+                    className="btn-outline text-[11px]"
+                    onClick={() =>
+                      setSpecifications((prev) => [...prev, { key: '', value: '' }])
+                    }
+                  >
+                    <FiPlus className="h-3 w-3" />
+                    Add row
+                  </button>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Key/value pairs shown on the product page Specifications tab
+                  (e.g. <code className="font-mono">Net weight</code> →{' '}
+                  <code className="font-mono">500 g</code>).
+                </p>
+                {specifications.length === 0 ? (
+                  <p className="mt-2 text-[11px] italic text-slate-400">
+                    No specifications yet. Click <em>Add row</em> to start.
+                  </p>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {specifications.map((row, idx) => (
+                      <div key={idx} className="flex flex-wrap items-start gap-2">
+                        <input
+                          className="input flex-1 min-w-[120px]"
+                          value={row.key}
+                          placeholder="Key (e.g. Net weight)"
+                          maxLength={60}
+                          onChange={(e) =>
+                            setSpecifications((prev) =>
+                              prev.map((r, i) =>
+                                i === idx ? { ...r, key: e.target.value } : r,
+                              ),
+                            )
+                          }
+                        />
+                        <input
+                          className="input flex-1 min-w-[120px]"
+                          value={row.value}
+                          placeholder="Value (e.g. 500 g)"
+                          maxLength={120}
+                          onChange={(e) =>
+                            setSpecifications((prev) =>
+                              prev.map((r, i) =>
+                                i === idx ? { ...r, value: e.target.value } : r,
+                              ),
+                            )
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-accent-600 dark:hover:bg-slate-800"
+                          onClick={() =>
+                            setSpecifications((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          aria-label="Remove row"
+                        >
+                          <FiTrash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4 text-sm">
