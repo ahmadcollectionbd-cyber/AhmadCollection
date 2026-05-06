@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { FiShoppingCart, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { useCartStore } from '../stores/cartStore';
+import { cartLineKey, useCartStore } from '../stores/cartStore';
 import { useDataStore } from '../stores/dataStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { computeShipping } from '../lib/settings';
@@ -56,29 +56,37 @@ export function Cart() {
         ) : (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
             <ul className="space-y-3">
-              {items.map((it) => (
-                <li key={it.productId} className="card flex gap-4 p-3">
-                  <Link to={`/product/${it.slug}`} className="shrink-0">
-                    <SafeImage src={it.image} alt={it.name} className="h-24 w-24 rounded-xl object-cover" />
-                  </Link>
-                  <div className="flex flex-1 flex-col">
-                    <Link to={`/product/${it.slug}`} className="line-clamp-2 text-sm font-semibold hover:text-brand-600">{it.name}</Link>
-                    <div className="mt-1 text-sm font-bold text-brand-700 dark:text-brand-300">{formatBDT(it.price)}</div>
-                    <div className="mt-auto flex items-center justify-between">
-                      <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-white/10">
-                        <button onClick={() => setQty(it.productId, it.quantity - 1)} className="px-3 py-1.5">−</button>
-                        <span className="min-w-8 text-center text-sm font-semibold">{it.quantity}</span>
-                        <button onClick={() => setQty(it.productId, it.quantity + 1)} className="px-3 py-1.5">+</button>
+              {items.map((it) => {
+                const key = cartLineKey(it);
+                return (
+                  <li key={key} className="card flex gap-4 p-3">
+                    <Link to={`/product/${it.slug}`} className="shrink-0">
+                      <SafeImage src={it.image} alt={it.name} className="h-24 w-24 rounded-xl object-cover" />
+                    </Link>
+                    <div className="flex flex-1 flex-col">
+                      <Link to={`/product/${it.slug}`} className="line-clamp-2 text-sm font-semibold hover:text-brand-600">{it.name}</Link>
+                      {it.variantLabel && (
+                        <span className="mt-0.5 inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {it.variantLabel}
+                        </span>
+                      )}
+                      <div className="mt-1 text-sm font-bold text-brand-700 dark:text-brand-300">{formatBDT(it.price)}</div>
+                      <div className="mt-auto flex items-center justify-between">
+                        <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-white/10">
+                          <button onClick={() => setQty(key, it.quantity - 1)} className="px-3 py-1.5">−</button>
+                          <span className="min-w-8 text-center text-sm font-semibold">{it.quantity}</span>
+                          <button onClick={() => setQty(key, it.quantity + 1)} className="px-3 py-1.5">+</button>
+                        </div>
+                        <button onClick={() => remove(key)} className="text-xs text-accent-500 hover:underline inline-flex items-center gap-1">
+                          <FiTrash2 className="h-3.5 w-3.5" />
+                          {t('cart.remove')}
+                        </button>
                       </div>
-                      <button onClick={() => remove(it.productId)} className="text-xs text-accent-500 hover:underline inline-flex items-center gap-1">
-                        <FiTrash2 className="h-3.5 w-3.5" />
-                        {t('cart.remove')}
-                      </button>
                     </div>
-                  </div>
-                  <div className="hidden sm:block text-right text-sm font-bold">{formatBDT(it.price * it.quantity)}</div>
-                </li>
-              ))}
+                    <div className="hidden sm:block text-right text-sm font-bold">{formatBDT(it.price * it.quantity)}</div>
+                  </li>
+                );
+              })}
             </ul>
 
             <aside className="card sticky top-24 h-fit p-5">

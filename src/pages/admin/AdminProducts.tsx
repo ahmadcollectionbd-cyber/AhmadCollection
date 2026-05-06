@@ -6,10 +6,12 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
-import type { Product } from '../../types';
+import type { Product, ProductType, ProductVariant } from '../../types';
 import { formatBDT, slugify } from '../../lib/utils';
 import { uploadProductImage } from '../../lib/upload';
 import { PageHeader } from '../../components/admin/PageHeader';
+
+const CLOTHING_SIZE_PRESETS = ['S', 'M', 'L', 'XL', 'XXL', 'Free'] as const;
 
 const schema = z.object({
   name: z.string().min(2),
@@ -18,11 +20,17 @@ const schema = z.object({
   comparePrice: z.coerce.number().optional(),
   stock: z.coerce.number().min(0),
   categoryId: z.string().min(1),
+  type: z.enum(['standard', 'clothing', 'food']).default('standard'),
   featured: z.boolean().optional(),
   bestseller: z.boolean().optional(),
 });
 
 type Form = z.infer<typeof schema>;
+
+/** Stable id helper for size variants. */
+function sizeVariantId(size: string) {
+  return `sz-${size.toLowerCase().replace(/\s+/g, '-')}`;
+}
 
 export function AdminProducts() {
   const products = useDataStore((s) => s.products);
@@ -36,6 +44,8 @@ export function AdminProducts() {
   const [search, setSearch] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [productType, setProductType] = useState<ProductType>('standard');
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -46,13 +56,26 @@ export function AdminProducts() {
   function startCreate() {
     setEditing(null);
     setImages([]);
-    reset({ name: '', description: '', price: 0, stock: 0, categoryId: categories[0]?.id, featured: false, bestseller: false });
+    setProductType('standard');
+    setVariants([]);
+    reset({
+      name: '',
+      description: '',
+      price: 0,
+      stock: 0,
+      categoryId: categories[0]?.id,
+      type: 'standard',
+      featured: false,
+      bestseller: false,
+    });
     setOpen(true);
   }
 
   function startEdit(p: Product) {
     setEditing(p);
     setImages(p.images);
+    setProductType(p.type ?? 'standard');
+    setVariants(p.variants ?? []);
     reset({
       name: p.name,
       description: p.description,
@@ -60,10 +83,27 @@ export function AdminProducts() {
       comparePrice: p.comparePrice,
       stock: p.stock,
       categoryId: p.categoryIds[0],
+      type: p.type ?? 'standard',
       featured: p.featured,
       bestseller: p.bestseller,
     });
     setOpen(true);
+  }
+
+  function toggleSizeVariant(size: string) {
+    const id = sizeVariantId(size);
+    setVariants((prev) => {
+      const existing = prev.find((v) => v.id === id);
+      if (existing) return prev.filter((v) => v.id !== id);
+      return [
+        ...prev,
+        { id, label: size, attributes: { size }, stock: 0 },
+      ];
+    });
+  }
+
+  function updateVariant(id: string, patch: Partial<ProductVariant>) {
+    setVariants((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
   }
 
   async function handleFiles(files: FileList | null) {
@@ -90,6 +130,13 @@ export function AdminProducts() {
       toast.error('Add at least one image');
       return;
     }
+    const finalVariants =
+      values.type === 'clothing' && variants.length > 0 ? variants : undefined;
+    // Clothing: cap aggregate stock by sum of size stocks for inventory parity.
+    const aggregateStock = finalVariants
+      ? finalVariants.reduce((acc, v) => acc + (v.stock || 0), 0)
+      : values.stock;
+
     if (editing) {
       const newSlug = slugify(values.name);
       await updateProduct(editing.id, {
@@ -98,9 +145,11 @@ export function AdminProducts() {
         description: values.description,
         price: values.price,
         comparePrice: values.comparePrice,
-        stock: values.stock,
+        stock: aggregateStock,
         categoryIds: [values.categoryId],
         images,
+        type: values.type,
+        variants: finalVariants,
         featured: values.featured,
         bestseller: values.bestseller,
       });
@@ -114,13 +163,15 @@ export function AdminProducts() {
         description: values.description,
         price: values.price,
         comparePrice: values.comparePrice,
-        stock: values.stock,
+        stock: aggregateStock,
         images,
         categoryIds: [values.categoryId],
         sku: `AC-${id.slice(-4).toUpperCase()}`,
         rating: 0,
         reviewsCount: 0,
         specifications: [],
+        type: values.type,
+        variants: finalVariants,
         featured: values.featured,
         bestseller: values.bestseller,
         createdAt: Date.now(),
@@ -238,7 +289,15 @@ export function AdminProducts() {
                 </div>
                 <div>
                   <label className="label">Stock</label>
-                  <input type="number" className="input mt-1" {...register('stock')} />
+                  <input
+                    type="number"
+                    className="input mt-1 disabled:opacity-60"
+                    disabled={productType === 'clothing'}
+                    {...register('stock')}
+                  />
+                  {productType === 'clothing' && (
+                    <p className="mt-1 text-[10px] text-slate-500">Set per-size below.</p>
+                  )}
                 </div>
               </div>
               <div>
@@ -247,6 +306,113 @@ export function AdminProducts() {
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+
+              <div>
+                <label className="label">Product type</label>
+                <select
+                  className="input mt-1"
+                  {...register('type', {
+                    onChange: (e) => {
+                      const v = e.target.value as ProductType;
+                      setProductType(v);
+                      if (v !== 'clothing') setVariants([]);
+                    },
+                  })}
+                >
+                  <option value="standard">Standard (no variants)</option>
+                  <option value="clothing">Clothing (size variants)</option>
+                  <option value="food">Food / mango (per-kg, advanced)</option>
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {productType === 'standard' && 'Single price, single SKU. Inside / Outside delivery.'}
+                  {productType === 'clothing' && 'Pick the sizes you stock and set per-size stock below.'}
+                  {productType === 'food' && 'Per-kg pricing & mango delivery options come in the next update.'}
+                </p>
+              </div>
+
+              {productType === 'clothing' && (
+                <div className="rounded-2xl border border-sky-200/60 bg-sky-50/40 p-3 dark:border-sky-500/20 dark:bg-sky-500/5">
+                  <div className="flex items-center justify-between">
+                    <span className="label">Size variants</span>
+                    <span className="text-[11px] text-slate-500">
+                      Total stock: <strong>{variants.reduce((a, v) => a + (v.stock || 0), 0)}</strong>
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {CLOTHING_SIZE_PRESETS.map((size) => {
+                      const id = sizeVariantId(size);
+                      const active = !!variants.find((v) => v.id === id);
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => toggleSizeVariant(size)}
+                          className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
+                            active
+                              ? 'border-sky-500 bg-sky-500 text-white'
+                              : 'border-slate-200 bg-white/70 hover:border-sky-400 dark:border-white/10 dark:bg-slate-900/60'
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {variants.length > 0 && (
+                    <div className="mt-3 grid gap-2">
+                      {variants.map((v) => (
+                        <div
+                          key={v.id}
+                          className="grid items-center gap-2 sm:grid-cols-[60px_1fr_1fr_28px]"
+                        >
+                          <span className="rounded-md bg-sky-500/10 px-2 py-1 text-center text-xs font-bold text-sky-700 dark:text-sky-300">
+                            {v.label}
+                          </span>
+                          <label className="text-[11px] text-slate-500">
+                            Stock
+                            <input
+                              type="number"
+                              min={0}
+                              value={v.stock}
+                              onChange={(e) =>
+                                updateVariant(v.id, { stock: Math.max(0, Number(e.target.value)) })
+                              }
+                              className="input mt-0.5 h-9 py-1.5 text-xs"
+                            />
+                          </label>
+                          <label className="text-[11px] text-slate-500">
+                            Price override (৳, optional)
+                            <input
+                              type="number"
+                              min={0}
+                              value={v.price ?? ''}
+                              onChange={(e) =>
+                                updateVariant(v.id, {
+                                  price: e.target.value === '' ? undefined : Number(e.target.value),
+                                })
+                              }
+                              className="input mt-0.5 h-9 py-1.5 text-xs"
+                              placeholder="leave empty"
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => toggleSizeVariant(v.attributes.size!)}
+                            className="rounded-md p-1.5 text-accent-500 hover:bg-accent-500/10"
+                            aria-label={`Remove size ${v.label}`}
+                          >
+                            <FiX className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <p className="text-[11px] text-slate-500">
+                        Empty price falls back to the product&apos;s base price. Total
+                        across sizes is used as the product stock.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="label">Images</label>

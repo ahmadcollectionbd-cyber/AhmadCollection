@@ -35,6 +35,7 @@ export function Product() {
   const product = useMemo(() => products.find((p) => p.slug === slug), [products, slug]);
   const [imageIdx, setImageIdx] = useState(0);
   const [qty, setQty] = useState(1);
+  const [variantId, setVariantId] = useState<string | undefined>(undefined);
   const [tab, setTab] = useState<'description' | 'specifications' | 'reviews'>('description');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -48,16 +49,29 @@ export function Product() {
     );
   }
 
+  // Variants drive price/stock when present (clothing sizes, food packs).
+  const variants = product.variants ?? [];
+  const hasVariants = variants.length > 0;
+  const selectedVariant = hasVariants
+    ? variants.find((v) => v.id === variantId)
+    : undefined;
+  const effectivePrice = selectedVariant?.price ?? product.price;
+  const effectiveCompare = selectedVariant?.comparePrice ?? product.comparePrice;
+  const effectiveStock = hasVariants
+    ? selectedVariant?.stock ?? 0
+    : product.stock;
+  const requiresVariantPick = hasVariants && !selectedVariant;
+
   const productReviews = reviews.filter((r) => r.productId === product.id);
   const related = products.filter((p) => p.id !== product.id && p.categoryIds.some((c) => product.categoryIds.includes(c))).slice(0, 4);
   const isWished = wished(product.id);
 
   const discount =
-    product.comparePrice && product.comparePrice > product.price
-      ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
+    effectiveCompare && effectiveCompare > effectivePrice
+      ? Math.round(((effectiveCompare - effectivePrice) / effectiveCompare) * 100)
       : 0;
 
-  const wm = `Hi! I'm interested in *${product.name}* (${formatBDT(product.price)}). Is it available?`;
+  const wm = `Hi! I'm interested in *${product.name}* (${formatBDT(effectivePrice)}). Is it available?`;
 
   return (
     <>
@@ -114,7 +128,7 @@ export function Product() {
             <div className="flex flex-wrap items-center gap-2">
               {product.bestseller && <span className="badge-brand">Bestseller</span>}
               {discount > 0 && <span className="badge-accent">-{discount}% off</span>}
-              {product.stock > 0 ? (
+              {effectiveStock > 0 ? (
                 <span className="badge bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
                   <FiCheck className="h-3 w-3" /> {t('product.inStock')}
                 </span>
@@ -136,9 +150,9 @@ export function Product() {
             </div>
 
             <div className="mt-5 flex items-baseline gap-3">
-              <span className="text-3xl font-extrabold text-brand-700 dark:text-brand-300">{formatBDT(product.price)}</span>
-              {product.comparePrice && product.comparePrice > product.price && (
-                <span className="text-base text-slate-400 line-through">{formatBDT(product.comparePrice)}</span>
+              <span className="text-3xl font-extrabold text-brand-700 dark:text-brand-300">{formatBDT(effectivePrice)}</span>
+              {effectiveCompare && effectiveCompare > effectivePrice && (
+                <span className="text-base text-slate-400 line-through">{formatBDT(effectiveCompare)}</span>
               )}
             </div>
 
@@ -146,32 +160,88 @@ export function Product() {
               {lang === 'bn' && product.descriptionBn ? product.descriptionBn : product.description}
             </p>
 
+            {hasVariants && (
+              <div className="mt-5">
+                <span className="label">
+                  {product.type === 'clothing' ? 'Size' : 'Option'}
+                </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {variants.map((v) => {
+                    const out = v.stock <= 0;
+                    const active = v.id === variantId;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        disabled={out}
+                        onClick={() => {
+                          setVariantId(v.id);
+                          setQty(1);
+                        }}
+                        className={`min-w-[3rem] rounded-xl border px-3 py-1.5 text-sm font-semibold transition ${
+                          active
+                            ? 'border-brand-500 bg-brand-500/10 text-brand-700 ring-2 ring-brand-500/30 dark:text-brand-300'
+                            : out
+                              ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 line-through dark:border-white/10 dark:bg-slate-800 dark:text-slate-500'
+                              : 'border-slate-200 bg-white/70 hover:border-brand-400 dark:border-white/10 dark:bg-slate-900/60'
+                        }`}
+                      >
+                        {lang === 'bn' && v.labelBn ? v.labelBn : v.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {requiresVariantPick && (
+                  <p className="mt-1.5 text-xs text-accent-500">
+                    {product.type === 'clothing' ? 'Select a size to continue.' : 'Select an option to continue.'}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="mt-6 flex items-center gap-2">
               <span className="label">Quantity</span>
               <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-slate-900/60">
                 <button onClick={() => setQty(Math.max(1, qty - 1))} className="px-3 py-2 text-lg leading-none">−</button>
                 <span className="min-w-8 text-center text-sm font-semibold">{qty}</span>
-                <button onClick={() => setQty(Math.min(product.stock, qty + 1))} className="px-3 py-2 text-lg leading-none">+</button>
+                <button
+                  onClick={() => setQty(Math.min(effectiveStock, qty + 1))}
+                  className="px-3 py-2 text-lg leading-none"
+                >
+                  +
+                </button>
               </div>
-              {product.sku && <span className="ml-auto text-xs text-slate-500">SKU: {product.sku}</span>}
+              {(selectedVariant?.sku || product.sku) && (
+                <span className="ml-auto text-xs text-slate-500">SKU: {selectedVariant?.sku ?? product.sku}</span>
+              )}
             </div>
 
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               <button
-                disabled={product.stock <= 0}
+                disabled={effectiveStock <= 0 || requiresVariantPick}
                 onClick={() => {
-                  add(product, qty);
+                  if (requiresVariantPick) {
+                    toast.error(product.type === 'clothing' ? 'Select a size first' : 'Select an option first');
+                    return;
+                  }
+                  add(product, qty, selectedVariant);
                   pixelEvent('AddToCart', {
                     content_ids: [product.id],
                     content_name: product.name,
                     content_type: 'product',
                     currency: 'BDT',
-                    value: product.price * qty,
+                    value: effectivePrice * qty,
                   });
                   gaEvent('add_to_cart', {
                     currency: 'BDT',
-                    value: product.price * qty,
-                    items: [{ item_id: product.id, item_name: product.name, price: product.price, quantity: qty }],
+                    value: effectivePrice * qty,
+                    items: [{
+                      item_id: product.id,
+                      item_name: product.name,
+                      item_variant: selectedVariant?.label,
+                      price: effectivePrice,
+                      quantity: qty,
+                    }],
                   });
                   toast.success('Added to cart');
                 }}
@@ -181,14 +251,18 @@ export function Product() {
                 {t('product.addToCart')}
               </button>
               <button
-                disabled={product.stock <= 0}
+                disabled={effectiveStock <= 0 || requiresVariantPick}
                 onClick={() => {
-                  add(product, qty);
+                  if (requiresVariantPick) {
+                    toast.error(product.type === 'clothing' ? 'Select a size first' : 'Select an option first');
+                    return;
+                  }
+                  add(product, qty, selectedVariant);
                   pixelEvent('AddToCart', {
                     content_ids: [product.id],
                     content_name: product.name,
                     currency: 'BDT',
-                    value: product.price * qty,
+                    value: effectivePrice * qty,
                   });
                   navigate('/checkout');
                 }}

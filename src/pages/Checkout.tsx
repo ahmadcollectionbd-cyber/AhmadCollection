@@ -387,10 +387,15 @@ export function Checkout() {
             <h2 className="font-display text-sm font-bold uppercase tracking-wider">Order summary</h2>
             <ul className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
               {items.map((it) => (
-                <li key={it.productId} className="flex items-center gap-3 text-sm">
+                <li key={`${it.productId}|${it.variantId ?? ''}`} className="flex items-center gap-3 text-sm">
                   <SafeImage src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
-                    <div className="line-clamp-1 text-sm">{it.name}</div>
+                    <div className="line-clamp-1 text-sm">
+                      {it.name}
+                      {it.variantLabel && (
+                        <span className="ml-1 text-xs text-slate-500">· {it.variantLabel}</span>
+                      )}
+                    </div>
                     <div className="text-xs text-slate-500">× {it.quantity}</div>
                   </div>
                   <div className="text-sm font-semibold">{formatBDT(it.price * it.quantity)}</div>
