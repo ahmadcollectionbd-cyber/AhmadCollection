@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
-import { FiBell, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiBell, FiEdit2, FiPlus, FiSave, FiTrash2, FiX } from 'react-icons/fi';
 import { useDataStore } from '../../stores/dataStore';
 import { formatDateTime } from '../../lib/utils';
 import type { Announcement } from '../../types';
@@ -19,11 +19,29 @@ export function AdminNotifications() {
   const [body, setBody] = useState('');
   const [href, setHref] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const sorted = useMemo(
     () => [...announcements].sort((a, b) => b.createdAt - a.createdAt),
     [announcements],
   );
+
+  function clearForm() {
+    setEditingId(null);
+    setTitle('');
+    setBody('');
+    setHref('');
+  }
+
+  function startEdit(a: Announcement) {
+    setEditingId(a.id);
+    setTitle(a.title);
+    setBody(a.body ?? '');
+    setHref(a.href ?? '');
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
 
   async function onPublish(e: React.FormEvent) {
     e.preventDefault();
@@ -32,20 +50,27 @@ export function AdminNotifications() {
       return;
     }
     setBusy(true);
-    const a: Announcement = {
-      id: newId(),
-      title: title.trim(),
-      body: body.trim() || undefined,
-      href: href.trim() || undefined,
-      active: true,
-      createdAt: Date.now(),
-    };
     try {
-      await addAnnouncement(a);
-      setTitle('');
-      setBody('');
-      setHref('');
-      toast.success('Notification published to all users');
+      if (editingId) {
+        await updateAnnouncement(editingId, {
+          title: title.trim(),
+          body: body.trim() || undefined,
+          href: href.trim() || undefined,
+        });
+        toast.success('Notification updated');
+      } else {
+        const a: Announcement = {
+          id: newId(),
+          title: title.trim(),
+          body: body.trim() || undefined,
+          href: href.trim() || undefined,
+          active: true,
+          createdAt: Date.now(),
+        };
+        await addAnnouncement(a);
+        toast.success('Notification published to all users');
+      }
+      clearForm();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to publish');
     } finally {
@@ -75,6 +100,20 @@ export function AdminNotifications() {
       />
 
       <form onSubmit={onPublish} className="card mt-6 grid gap-3 p-5">
+        {editingId && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-brand-500/30 bg-brand-500/5 px-3 py-2 text-xs text-brand-700 dark:text-brand-300">
+            <span className="font-semibold">
+              Editing notification — changes will be saved to the existing entry.
+            </span>
+            <button
+              type="button"
+              onClick={clearForm}
+              className="text-[11px] underline-offset-2 hover:underline"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
         <div>
           <label className="label">Title</label>
           <input
@@ -108,10 +147,26 @@ export function AdminNotifications() {
             path like <code className="font-mono">/shop</code> or a full URL.
           </p>
         </div>
-        <div className="flex items-center justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {editingId && (
+            <button
+              type="button"
+              onClick={clearForm}
+              className="btn-outline text-xs"
+            >
+              <FiX className="h-3.5 w-3.5" />
+              Cancel edit
+            </button>
+          )}
           <button type="submit" disabled={busy} className="btn-primary text-xs">
-            <FiPlus className="h-4 w-4" />
-            {busy ? 'Publishing…' : 'Publish to all users'}
+            {editingId ? <FiSave className="h-4 w-4" /> : <FiPlus className="h-4 w-4" />}
+            {busy
+              ? editingId
+                ? 'Saving…'
+                : 'Publishing…'
+              : editingId
+                ? 'Save changes'
+                : 'Publish to all users'}
           </button>
         </div>
       </form>
@@ -138,6 +193,17 @@ export function AdminNotifications() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(a)}
+                    className={
+                      'btn-outline text-xs ' +
+                      (editingId === a.id ? '!border-brand-500 !text-brand-600' : '')
+                    }
+                  >
+                    <FiEdit2 className="h-3.5 w-3.5" />
+                    {editingId === a.id ? 'Editing' : 'Edit'}
+                  </button>
                   <button
                     type="button"
                     onClick={() => onToggle(a)}

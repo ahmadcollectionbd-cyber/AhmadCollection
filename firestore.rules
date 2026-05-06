@@ -90,10 +90,25 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Reviews — only signed-in users can create their own
+    // Reviews — public read; anyone can submit (guests included) so customers
+    // can leave feedback without signing in. Signed-in users tag their review
+    // with their own uid; guests tag it with the literal string "guest".
+    // Admins can edit/hide; signed-in authors can edit/delete their own.
     match /reviews/{id} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow create: if
+        request.resource.data.productId is string &&
+        request.resource.data.userName is string &&
+        request.resource.data.rating is number &&
+        request.resource.data.comment is string &&
+        request.resource.data.comment.size() > 0 &&
+        request.resource.data.comment.size() <= 1000 &&
+        request.resource.data.rating >= 1 &&
+        request.resource.data.rating <= 5 &&
+        (
+          (isSignedIn() && request.resource.data.userId == request.auth.uid) ||
+          (request.resource.data.userId == 'guest')
+        );
       allow update, delete: if isAdmin() ||
         (isSignedIn() && resource.data.userId == request.auth.uid);
     }

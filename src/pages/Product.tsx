@@ -42,6 +42,8 @@ export function Product() {
   const [tab, setTab] = useState<'description' | 'specifications' | 'reviews'>('description');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
 
   if (!product) {
     return (
@@ -457,9 +459,40 @@ export function Product() {
 
                 <div className="mt-6 rounded-2xl border border-slate-200/70 p-4 dark:border-white/10">
                   <h4 className="text-sm font-semibold">Write a review</h4>
+                  {!user && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Anyone can review — just enter your name (and an optional phone) to submit.
+                    </p>
+                  )}
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {!user && (
+                      <>
+                        <input
+                          value={guestName}
+                          onChange={(e) => setGuestName(e.target.value)}
+                          placeholder="Your name *"
+                          className="input"
+                          maxLength={60}
+                        />
+                        <input
+                          value={guestPhone}
+                          onChange={(e) => setGuestPhone(e.target.value)}
+                          placeholder="Phone (optional)"
+                          className="input"
+                          maxLength={20}
+                          inputMode="tel"
+                        />
+                      </>
+                    )}
+                  </div>
                   <div className="mt-2 flex items-center gap-1">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <button key={i} onClick={() => setReviewRating(i + 1)}>
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setReviewRating(i + 1)}
+                        aria-label={`${i + 1} star`}
+                      >
                         <FiStar className={`h-5 w-5 ${i < reviewRating ? 'fill-current text-amber-500' : 'text-slate-300'}`} />
                       </button>
                     ))}
@@ -469,21 +502,34 @@ export function Product() {
                     onChange={(e) => setReviewComment(e.target.value)}
                     placeholder="Share your experience…"
                     className="input mt-2 min-h-[80px]"
+                    maxLength={1000}
                   />
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!reviewComment.trim()) return toast.error('Please write a comment');
-                      addReview({
-                        id: `r-${Date.now()}`,
-                        productId: product.id,
-                        userId: user?.uid || 'guest',
-                        userName: user?.name || 'Guest',
-                        rating: reviewRating,
-                        comment: reviewComment.trim(),
-                        createdAt: Date.now(),
-                      });
-                      setReviewComment('');
-                      toast.success('Review submitted');
+                      const trimmedName = (user?.name || guestName).trim();
+                      if (!trimmedName) return toast.error('Please enter your name');
+                      const phoneTrim = guestPhone.trim();
+                      try {
+                        await addReview({
+                          id: `r-${Date.now()}`,
+                          productId: product.id,
+                          userId: user?.uid || 'guest',
+                          userName: trimmedName,
+                          ...(phoneTrim ? { userPhone: phoneTrim } : {}),
+                          rating: reviewRating,
+                          comment: reviewComment.trim(),
+                          createdAt: Date.now(),
+                        });
+                        setReviewComment('');
+                        if (!user) {
+                          setGuestName('');
+                          setGuestPhone('');
+                        }
+                        toast.success('Review submitted');
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : 'Could not submit review');
+                      }
                     }}
                     className="btn-primary mt-3"
                   >

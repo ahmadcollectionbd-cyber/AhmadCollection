@@ -21,6 +21,7 @@ import { queueOrderNotification } from '../lib/notifications';
 import { gaEvent, pixelEvent } from '../lib/pixel';
 import { formatBDT, generateOrderId } from '../lib/utils';
 import { SafeImage } from '../components/ui/SafeImage';
+import { PaymentBrand } from '../components/payments/PaymentBrand';
 import type { Order, PaymentMethod, DeliveryZone, MangoZone, DeliveryMode } from '../types';
 import { useTranslation } from 'react-i18next';
 
@@ -137,13 +138,39 @@ export function Checkout() {
   const codDue = Math.max(0, total - advanceCharge);
   const advanceRequired = advanceCharge > 0;
 
-  // When an advance is required, force payment method to bKash/Nagad so the
-  // customer can submit the upfront charge alongside their tx ID.
+  // Per-method on/off toggles configured in Admin → Settings → Payments.
+  const enabled = useMemo(
+    () =>
+      settings.paymentMethodsEnabled ?? {
+        bkash: true,
+        nagad: true,
+        bank: false,
+        cod: true,
+      },
+    [settings.paymentMethodsEnabled],
+  );
+  const enabledMethods = useMemo<PaymentMethod[]>(
+    () =>
+      (['bkash', 'nagad', 'bank', 'cod'] as PaymentMethod[]).filter(
+        (m) => enabled[m],
+      ),
+    [enabled],
+  );
+
+  // When an advance is required, force payment method to a non-COD channel
+  // (bKash / Nagad / Bank, whichever is enabled) so the customer can submit
+  // the upfront charge alongside their tx ID. Also keep the selected method
+  // in sync if the admin disables it after the customer arrived.
   useEffect(() => {
     if (advanceRequired && paymentMethod === 'cod') {
-      setPaymentMethod('bkash');
+      const fallback = enabledMethods.find((m) => m !== 'cod') ?? 'bkash';
+      setPaymentMethod(fallback);
+      return;
     }
-  }, [advanceRequired, paymentMethod]);
+    if (!enabled[paymentMethod] && enabledMethods.length > 0) {
+      setPaymentMethod(enabledMethods[0]);
+    }
+  }, [advanceRequired, paymentMethod, enabled, enabledMethods]);
 
   const cartCount = items.reduce((acc, it) => acc + it.quantity, 0);
   // Fire InitiateCheckout once on first arrival.
@@ -168,9 +195,12 @@ export function Checkout() {
 
   async function onSubmit(values: CheckoutForm) {
     if (advanceRequired && paymentMethod === 'cod') {
-      return toast.error('This order requires an advance payment via bKash or Nagad');
+      return toast.error('This order requires an advance payment via bKash, Nagad or Bank');
     }
-    if ((paymentMethod === 'bkash' || paymentMethod === 'nagad') && !values.paymentRef?.trim()) {
+    if (
+      (paymentMethod === 'bkash' || paymentMethod === 'nagad' || paymentMethod === 'bank') &&
+      !values.paymentRef?.trim()
+    ) {
       return toast.error('Please enter the transaction ID');
     }
     const crateTotal = items.reduce((acc, it) => acc + (it.cratePrice ?? 0), 0);
@@ -210,7 +240,12 @@ export function Checkout() {
       ...(advanceRequired
         ? {
             advancePaid: advanceCharge,
-            advanceMethod: paymentMethod === 'nagad' ? 'nagad' : 'bkash',
+            advanceMethod:
+              paymentMethod === 'nagad'
+                ? ('nagad' as const)
+                : paymentMethod === 'bank'
+                  ? ('bank' as const)
+                  : ('bkash' as const),
             advanceRef: values.paymentRef,
           }
         : {}),
@@ -280,6 +315,7 @@ export function Checkout() {
       : paymentMethod === 'nagad'
         ? settings.nagadNumber
         : '';
+  const bankAccount = settings.bankAccount;
 
   return (
     <>
@@ -465,40 +501,49 @@ export function Checkout() {
                   </p>
                 </div>
               )}
-              <div className="grid gap-2 sm:grid-cols-3">
-                {(
-                  [
-                    { v: 'bkash', label: t('checkout.bkash'), color: 'from-pink-500 to-pink-600' },
-                    { v: 'nagad', label: t('checkout.nagad'), color: 'from-orange-500 to-amber-600' },
-                    { v: 'cod', label: t('checkout.cod'), color: 'from-brand-500 to-brand-600' },
-                  ] as { v: PaymentMethod; label: string; color: string }[]
-                ).map((opt) => {
-                  const disabled = advanceRequired && opt.v === 'cod';
-                  return (
-                    <button
-                      key={opt.v}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => !disabled && setPaymentMethod(opt.v)}
-                      className={`relative rounded-2xl border p-4 text-left transition ${
-                        paymentMethod === opt.v
-                          ? 'border-brand-500 ring-2 ring-brand-500/30 bg-brand-500/5'
-                          : 'border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-slate-900/60'
-                      } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                    >
-                      <div className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${opt.color} text-xs font-bold text-white`}>
-                        {opt.v === 'cod' ? 'COD' : opt.v[0].toUpperCase()}
-                      </div>
-                      <div className="mt-2 text-sm font-semibold">{opt.label}</div>
-                      {disabled && (
-                        <div className="mt-1 text-[10px] text-slate-500">
-                          Not available — advance required
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              {enabledMethods.length === 0 ? (
+                <div className="rounded-2xl border border-amber-300/60 bg-amber-50/60 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                  No payment methods are enabled. Please contact support.
+                </div>
+              ) : (
+                <div
+                  className={`grid gap-2 ${enabledMethods.length >= 4 ? 'sm:grid-cols-4' : enabledMethods.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}
+                >
+                  {(
+                    [
+                      { v: 'bkash', label: t('checkout.bkash') },
+                      { v: 'nagad', label: t('checkout.nagad') },
+                      { v: 'bank', label: 'Bank transfer' },
+                      { v: 'cod', label: t('checkout.cod') },
+                    ] as { v: PaymentMethod; label: string }[]
+                  )
+                    .filter((opt) => enabled[opt.v])
+                    .map((opt) => {
+                      const disabled = advanceRequired && opt.v === 'cod';
+                      return (
+                        <button
+                          key={opt.v}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => !disabled && setPaymentMethod(opt.v)}
+                          className={`relative rounded-2xl border p-4 text-left transition ${
+                            paymentMethod === opt.v
+                              ? 'border-brand-500 ring-2 ring-brand-500/30 bg-brand-500/5'
+                              : 'border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-slate-900/60'
+                          } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+                        >
+                          <PaymentBrand method={opt.v} size={28} />
+                          <div className="mt-2 text-sm font-semibold">{opt.label}</div>
+                          {disabled && (
+                            <div className="mt-1 text-[10px] text-slate-500">
+                              Not available — advance required
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
               {(paymentMethod === 'bkash' || paymentMethod === 'nagad') && (
                 <div className="mt-4 rounded-2xl border border-brand-500/30 bg-gradient-to-br from-white to-brand-50 p-4 text-sm shadow-sm dark:border-brand-500/40 dark:from-slate-900/60 dark:to-brand-500/10">
                   <p className="text-slate-700 dark:text-slate-200">
@@ -509,15 +554,8 @@ export function Checkout() {
                     to:
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span
-                      className={`inline-flex h-8 items-center rounded-lg px-2.5 text-xs font-bold text-white ${
-                        paymentMethod === 'bkash'
-                          ? 'bg-gradient-to-br from-pink-500 to-pink-600'
-                          : 'bg-gradient-to-br from-orange-500 to-amber-600'
-                      }`}
-                    >
-                      {paymentMethod === 'bkash' ? 'bKash' : 'Nagad'} (Personal)
-                    </span>
+                    <PaymentBrand method={paymentMethod} size={28} />
+                    <span className="text-xs text-slate-500">(Personal)</span>
                     <span className="font-mono text-base font-bold tracking-wide">
                       {paymentNumber}
                     </span>
@@ -544,6 +582,65 @@ export function Checkout() {
                   <input
                     className="input mt-2"
                     placeholder={t('checkout.paymentRef')}
+                    {...register('paymentRef')}
+                  />
+                </div>
+              )}
+              {paymentMethod === 'bank' && (
+                <div className="mt-4 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-white to-blue-50 p-4 text-sm shadow-sm dark:border-blue-500/40 dark:from-slate-900/60 dark:to-blue-500/10">
+                  <p className="text-slate-700 dark:text-slate-200">
+                    Transfer{' '}
+                    <span className="font-bold">
+                      {formatBDT(advanceRequired ? advanceCharge : total)}
+                    </span>{' '}
+                    to the account below:
+                  </p>
+                  {bankAccount && (bankAccount.bankName || bankAccount.accountNumber) ? (
+                    <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-xs">
+                      {bankAccount.bankName && (
+                        <>
+                          <dt className="text-slate-500">Bank</dt>
+                          <dd className="font-semibold">{bankAccount.bankName}</dd>
+                        </>
+                      )}
+                      {bankAccount.accountName && (
+                        <>
+                          <dt className="text-slate-500">Account name</dt>
+                          <dd className="font-semibold">{bankAccount.accountName}</dd>
+                        </>
+                      )}
+                      {bankAccount.accountNumber && (
+                        <>
+                          <dt className="text-slate-500">Account no.</dt>
+                          <dd className="font-mono font-bold">{bankAccount.accountNumber}</dd>
+                        </>
+                      )}
+                      {bankAccount.branch && (
+                        <>
+                          <dt className="text-slate-500">Branch</dt>
+                          <dd>{bankAccount.branch}</dd>
+                        </>
+                      )}
+                      {bankAccount.routingNumber && (
+                        <>
+                          <dt className="text-slate-500">Routing no.</dt>
+                          <dd className="font-mono">{bankAccount.routingNumber}</dd>
+                        </>
+                      )}
+                    </dl>
+                  ) : (
+                    <p className="mt-2 text-xs text-amber-700">
+                      Bank details not configured yet. Please contact support before transferring.
+                    </p>
+                  )}
+                  <p className="mt-3 text-[11px] text-slate-500">
+                    {advanceRequired
+                      ? `After transferring the advance ${formatBDT(advanceCharge)}, paste the bank reference below. The remaining ${formatBDT(codDue)} is collected on delivery.`
+                      : 'After transferring, paste the bank reference / tx ID below so we can match the payment to your order.'}
+                  </p>
+                  <input
+                    className="input mt-2"
+                    placeholder="Bank reference / transaction ID"
                     {...register('paymentRef')}
                   />
                 </div>
