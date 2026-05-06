@@ -14,6 +14,34 @@ export type Theme = 'light' | 'dark';
 
 export type DeliveryZone = 'inside' | 'outside';
 
+/**
+ * Coarse-grained product category that drives variant + delivery behaviour.
+ *  - `standard` — single price, single SKU, Inside/Outside delivery (current).
+ *  - `clothing` — sized variants (S/M/L/XL/Free); Inside/Outside delivery.
+ *  - `food`     — weight-priced (per-kg) or weight-pack variants; opt-in
+ *                 Steadfast-style Point/Home + 3-zone delivery, optional
+ *                 crate (kerat) packaging price chosen at checkout.
+ *
+ * `undefined` is treated as `standard` so existing products keep working.
+ */
+export type ProductType = 'standard' | 'clothing' | 'food';
+
+/**
+ * Coarse-grained Steadfast Courier zone the customer ships to. Only used
+ * by per-kg `food` products with `mangoDelivery.enabled === true`.
+ *  - `cityInside`     — inside the shop's base city (e.g. Dhaka).
+ *  - `districtOutside`— other districts / city centres outside the base city.
+ *  - `upozila`        — upozila / sub-district outside the base city.
+ */
+export type MangoZone = 'cityInside' | 'districtOutside' | 'upozila';
+
+/**
+ * Steadfast offers two physical drop-off modes that have different rates:
+ *  - `point` — customer picks up at the courier point (cheaper).
+ *  - `home`  — courier rider drops at the customer's address (pricier).
+ */
+export type DeliveryMode = 'point' | 'home';
+
 export interface DeliveryDistrict {
   /** District / city display name shown in the admin and matched against
    *  the city the customer enters at checkout (case-insensitive). */
@@ -32,6 +60,14 @@ export interface Category {
   image?: string;
   parentId?: string | null;
   description?: string;
+  /**
+   * Optional advance-delivery charge (BDT) collected upfront via
+   * bKash/Nagad before the order is confirmed. The remaining balance is
+   * still due on delivery. Applies to every product in this category
+   * unless the product has its own `advanceDeliveryCharge` override.
+   * `0` or `undefined` disables the advance.
+   */
+  advanceDeliveryCharge?: number;
 }
 
 export interface Review {
@@ -44,6 +80,68 @@ export interface Review {
   createdAt: number;
 }
 
+/**
+ * A single configurable variant of a product (size for clothing, weight
+ * pack for food). Sized variants share the parent product's images by
+ * default; setting `image` here lets the admin swap to a swatch / pack
+ * photo for that specific variant.
+ */
+export interface ProductVariant {
+  /** Stable slug-style id, e.g. `sz-m`, `wt-500g`. Unique per product. */
+  id: string;
+  /** Display label shown on the product page chip / cart line. */
+  label: string;
+  /** Bengali display label (optional). */
+  labelBn?: string;
+  /** Override base price (BDT). Empty falls back to `Product.price`. */
+  price?: number;
+  /** Strike-through compare price (BDT). */
+  comparePrice?: number;
+  /** Stock for this specific variant. */
+  stock: number;
+  /** Optional SKU override. */
+  sku?: string;
+  /** Optional swatch / variant photo URL. */
+  image?: string;
+  /** Structured attributes used by the variant picker. */
+  attributes: {
+    /** Clothing size (S/M/L/XL/Free etc.). */
+    size?: string;
+    /** Weight in kilograms (used for food packs, e.g. 0.5, 1, 5). */
+    weightKg?: number;
+    /** Color name (reserved for future use; size-only is shipped first). */
+    color?: string;
+  };
+}
+
+/**
+ * Bulk per-kg pricing for `food` products that are sold per-kg. When the
+ * customer orders >= `minKg`, the shop charges `pricePerKg` instead of
+ * the product's base `price`. Multiple tiers can be stacked (sorted by
+ * `minKg` ascending).
+ */
+export interface WeightTier {
+  minKg: number;
+  pricePerKg: number;
+}
+
+/**
+ * Optional crate (kerat / কেরাত) packaging surcharge for mango-style
+ * products. Customer picks one crate option at checkout; its price is
+ * added to the order total as a separate line item.
+ */
+export interface CrateOption {
+  /** Stable id, e.g. `crate-10kg`. Unique per product. */
+  id: string;
+  /** Display label shown at checkout (e.g. "10 কেজি কেরাত"). */
+  label: string;
+  labelBn?: string;
+  /** Capacity in kg (used to suggest a default based on order weight). */
+  capacityKg: number;
+  /** Price of the crate (BDT). */
+  price: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -51,6 +149,7 @@ export interface Product {
   slug: string;
   description: string;
   descriptionBn?: string;
+  /** Base price (BDT). For per-kg `food` products this is price per 1 kg. */
   price: number;
   comparePrice?: number;
   images: string[];
@@ -63,6 +162,38 @@ export interface Product {
   bestseller?: boolean;
   specifications: { key: string; value: string }[];
   tags?: string[];
+  /**
+   * Coarse product category. `undefined` ≡ `'standard'` so existing
+   * Firestore docs without this field keep behaving exactly as today.
+   */
+  type?: ProductType;
+  /**
+   * Selectable variants for `clothing` (sizes) or `food` (weight packs).
+   * Empty / undefined for products with no variants.
+   */
+  variants?: ProductVariant[];
+  /**
+   * `food` only — when true, the product is sold by weight (kg) and the
+   * customer enters a kg quantity at checkout. `price` becomes price per
+   * 1 kg and `variants` is ignored. Default: false.
+   */
+  pricedPerKg?: boolean;
+  /** `food` per-kg only — minimum order quantity in kg (e.g. 5). */
+  minOrderKg?: number;
+  /** `food` per-kg only — optional bulk-discount tiers. */
+  weightTiers?: WeightTier[];
+  /**
+   * `food` per-kg only — optional crate / kerat packaging surcharge
+   * options. The customer picks one at checkout; price is added on top
+   * of the kg subtotal. Empty / undefined hides the crate selector.
+   */
+  crateOptions?: CrateOption[];
+  /**
+   * Optional product-level advance-delivery charge (BDT) override. When
+   * set, takes precedence over the product's `Category.advanceDeliveryCharge`.
+   * `0` explicitly disables an inherited category-level advance.
+   */
+  advanceDeliveryCharge?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -70,11 +201,32 @@ export interface Product {
 export interface CartItem {
   productId: string;
   name: string;
+  /** Effective unit price (BDT). For per-kg lines this is price per 1 kg. */
   price: number;
   image: string;
+  /**
+   * For standard / variant lines: number of units (integer).
+   * For per-kg `food` lines: number of kilograms (decimal allowed).
+   */
   quantity: number;
   stock: number;
   slug: string;
+  /** Captured product `type` so checkout can pick the right calculator. */
+  productType?: ProductType;
+  /** Selected variant id (clothing size / food pack). */
+  variantId?: string;
+  /** Display label of the chosen variant ('M', '500 g'). */
+  variantLabel?: string;
+  /** Per-kg lines only — total kg ordered (== quantity for these lines). */
+  weightKg?: number;
+  /** Selected crate option id (mango). */
+  crateId?: string;
+  /** Display label of the chosen crate. */
+  crateLabel?: string;
+  /** Crate price (BDT) snapshotted at add-to-cart time. */
+  cratePrice?: number;
+  /** Advance-delivery charge (BDT) for this product, snapshotted. */
+  advanceCharge?: number;
 }
 
 export interface Address {
@@ -85,6 +237,14 @@ export interface Address {
   area?: string;
   note?: string;
   zone?: DeliveryZone;
+  /**
+   * Coarse mango-delivery zone the customer ships to. Only set when the
+   * cart contained at least one per-kg `food` line and the customer
+   * picked a Steadfast zone at checkout. Independent of `zone`.
+   */
+  mangoZone?: MangoZone;
+  /** Steadfast drop-off mode (point pick-up vs home delivery). */
+  deliveryMode?: DeliveryMode;
 }
 
 export interface Order {
@@ -104,6 +264,21 @@ export interface Order {
   paymentRef?: string;
   status: OrderStatus;
   statusHistory: { status: OrderStatus; at: number; note?: string }[];
+  /**
+   * Sum of all crate (kerat) charges chosen at checkout. Already
+   * included in `total`; broken out so the admin can see it separately.
+   */
+  crateTotal?: number;
+  /**
+   * Advance-delivery amount (BDT) the customer paid upfront via
+   * bKash/Nagad before the order was confirmed. Already included in
+   * `total`; the customer pays only `total - advancePaid` on delivery.
+   */
+  advancePaid?: number;
+  /** Payment channel used for the advance (bkash / nagad). */
+  advanceMethod?: 'bkash' | 'nagad';
+  /** Customer-provided transaction reference for the advance. */
+  advanceRef?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -219,6 +394,13 @@ export interface SiteSettings {
    *  the "Outside" delivery zone at checkout. */
   deliveryOutside: number;
   /**
+   * Optional Steadfast-style per-kg delivery profile used by `food`
+   * products that are sold per-kg (mango, etc.). When `enabled` is false
+   * the storefront falls back to the Inside/Outside model for every
+   * line. See `MangoDeliveryConfig` for the shape.
+   */
+  mangoDelivery?: MangoDeliveryConfig;
+  /**
    * Optional per-district delivery charges. When the customer types a city
    * that matches `name` (case-insensitive), this fee is used instead of the
    * inside/outside fallback. Lets the admin charge a different rate for
@@ -270,6 +452,43 @@ export interface SiteSettings {
   seoDescriptionBn: string;
   seoKeywords: string;
   ogImage: string;
+}
+
+/**
+ * Steadfast-style per-kg delivery rates that depend on (zone, mode,
+ * weight-tier). Stored under `SiteSettings.mangoDelivery`. Disabled by
+ * default — turn `enabled` on once the admin has filled in the rates.
+ */
+export interface MangoDeliveryConfig {
+  /** Master switch. When false the storefront ignores this profile. */
+  enabled: boolean;
+  /** Weight (kg) above which the "above" rates kick in. Default 20. */
+  weightThresholdKg: number;
+  /** Per-kg rates by zone. */
+  zones: {
+    cityInside: MangoZoneRates;
+    districtOutside: MangoZoneRates;
+    upozila: MangoZoneRates;
+  };
+  /**
+   * Minimum booking charge per shipment by (zone, mode). The greater of
+   * this and the per-kg total is charged. Applied once per zone+mode,
+   * not per line.
+   */
+  minimumCharge: {
+    cityInside: { point: number; home: number };
+    districtOutside: { point: number; home: number };
+    upozila: { point: number; home: number };
+  };
+}
+
+/**
+ * Per-kg delivery rates for one zone, broken down by Point/Home mode
+ * and below/above the weight threshold.
+ */
+export interface MangoZoneRates {
+  belowThreshold: { pointPerKg: number; homePerKg: number };
+  aboveThreshold: { pointPerKg: number; homePerKg: number };
 }
 
 export interface OrderNotification {
