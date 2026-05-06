@@ -228,19 +228,64 @@ export function AdminOrders() {
                   <div className="text-slate-500">{o.customer.phone}</div>
                   <div className="text-slate-500">{o.customer.address}{o.customer.city ? `, ${o.customer.city}` : ''}</div>
                   <div className="mt-2 text-xs text-slate-500">Payment: <b className="uppercase">{o.paymentMethod}</b></div>
+                  {o.customer.mangoZone && (
+                    <div className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                      Mango delivery:{' '}
+                      <b>
+                        {o.customer.mangoZone === 'cityInside'
+                          ? 'Dhaka City'
+                          : o.customer.mangoZone === 'districtOutside'
+                            ? 'Outside District'
+                            : 'Upozila'}
+                      </b>
+                      {o.customer.deliveryMode ? ` · ${o.customer.deliveryMode === 'home' ? 'Home' : 'Point'}` : ''}
+                    </div>
+                  )}
+                  {typeof o.advancePaid === 'number' && o.advancePaid > 0 && (
+                    <div className="mt-1 rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
+                      Advance paid: <b>{formatBDT(o.advancePaid)}</b>
+                      {o.advanceMethod ? ` via ${o.advanceMethod}` : ''}
+                      {o.advanceRef ? ` · Ref: ${o.advanceRef}` : ''}
+                      <div className="mt-0.5">
+                        Balance due (COD): <b>{formatBDT(Math.max(0, o.total - o.advancePaid))}</b>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-widest text-slate-500">Items</div>
                   <ul className="mt-2 space-y-1.5 text-sm">
-                    {o.items.map((it) => (
-                      <li key={it.productId} className="flex items-center gap-2">
-                        <img src={it.image} alt="" className="h-8 w-8 rounded-md object-cover" />
-                        <span className="line-clamp-1 flex-1">{it.name}</span>
-                        <span className="text-xs text-slate-500">× {it.quantity}</span>
-                        <span className="font-semibold">{formatBDT(it.price * it.quantity)}</span>
-                      </li>
-                    ))}
+                    {o.items.map((it) => {
+                      const isPerKg = it.productType === 'food' && typeof it.weightKg === 'number';
+                      return (
+                        <li key={`${it.productId}|${it.variantId ?? ''}`} className="flex items-center gap-2">
+                          <img src={it.image} alt="" className="h-8 w-8 rounded-md object-cover" />
+                          <div className="line-clamp-1 flex-1">
+                            {it.name}
+                            {it.variantLabel && (
+                              <span className="ml-1 text-xs text-slate-500">· {it.variantLabel}</span>
+                            )}
+                            {it.crateLabel && (
+                              <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">
+                                + {it.crateLabel} ({formatBDT(it.cratePrice ?? 0)})
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-500">
+                            {isPerKg ? `${it.quantity} kg @ ${formatBDT(it.price)}/kg` : `× ${it.quantity}`}
+                          </span>
+                          <span className="font-semibold">
+                            {formatBDT(it.price * it.quantity + (it.cratePrice ?? 0))}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
+                  {typeof o.crateTotal === 'number' && o.crateTotal > 0 && (
+                    <div className="mt-2 text-xs text-slate-500">
+                      Crate (kerat) total: <b className="text-amber-600 dark:text-amber-400">{formatBDT(o.crateTotal)}</b>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="mt-4 flex justify-end">
