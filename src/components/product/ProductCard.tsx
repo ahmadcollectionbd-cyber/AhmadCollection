@@ -21,6 +21,12 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
       ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
       : 0;
 
+  // Products that need extra config on the detail page (size pick, kg
+  // input, crate selector) skip the quick-add and route to detail.
+  const needsConfig =
+    (product.variants && product.variants.length > 0) ||
+    !!product.pricedPerKg;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -89,6 +95,10 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
             type="button"
             disabled={product.stock <= 0}
             onClick={() => {
+              if (needsConfig) {
+                navigate(`/product/${product.slug}`);
+                return;
+              }
               add(product, 1);
               toast.success('Added to cart');
             }}
@@ -101,6 +111,10 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
             type="button"
             disabled={product.stock <= 0}
             onClick={() => {
+              if (needsConfig) {
+                navigate(`/product/${product.slug}`);
+                return;
+              }
               add(product, 1);
               navigate('/checkout');
             }}

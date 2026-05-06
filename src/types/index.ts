@@ -137,7 +137,7 @@ export interface CrateOption {
   label: string;
   labelBn?: string;
   /** Capacity in kg (used to suggest a default based on order weight). */
-  capacityKg: number;
+  capacityKg?: number;
   /** Price of the crate (BDT). */
   price: number;
 }
