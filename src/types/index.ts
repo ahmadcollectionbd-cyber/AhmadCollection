@@ -168,6 +168,47 @@ export interface CrateOption {
   price: number;
 }
 
+/**
+ * A pre-built mango / food package the admin defines on a product. Each
+ * package is an independent SKU the customer can pick from a list and
+ * order in any integer quantity. Packages can ship with an optional
+ * crate (kerat) bundled in — set `crate.price` to 0 to make the crate
+ * free.
+ *
+ * When `Product.foodPackages` has entries, the storefront shows the
+ * package picker on the Product page instead of the per-kg / weight
+ * variants UI. Each selected package becomes its own cart line.
+ */
+export interface FoodPackage {
+  /** Stable id, e.g. `pkg-5kg`. Unique per product. */
+  id: string;
+  /** Display name shown to the customer. */
+  name: string;
+  /** Bengali display name (optional). */
+  nameBn?: string;
+  /** Net weight (kg) of the package contents. */
+  weightKg: number;
+  /** Package price (BDT). */
+  price: number;
+  /** Optional strike-through compare price (BDT). */
+  comparePrice?: number;
+  /** Optional per-package stock cap. `undefined` = unlimited. */
+  stock?: number;
+  /**
+   * Optional included crate (kerat). When set, its price is added on
+   * top of the package price for each unit. `price === 0` advertises a
+   * free crate.
+   */
+  crate?: {
+    name: string;
+    nameBn?: string;
+    /** Crate capacity / quantity (kg). */
+    quantityKg: number;
+    /** Crate price (BDT). 0 means included free. */
+    price: number;
+  };
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -218,6 +259,13 @@ export interface Product {
    */
   crateOptions?: CrateOption[];
   /**
+   * `food` only — optional pre-built packages (e.g. "Family pack 5 kg").
+   * When set, the Product page renders a multi-pick package list with
+   * per-package quantities instead of (or alongside) the per-kg input.
+   * Each selected package becomes its own cart line.
+   */
+  foodPackages?: FoodPackage[];
+  /**
    * Optional product-level advance-delivery charge (BDT) override. When
    * set, takes precedence over the product's `Category.advanceDeliveryCharge`.
    * `0` explicitly disables an inherited category-level advance.
@@ -256,6 +304,12 @@ export interface CartItem {
   cratePrice?: number;
   /** Advance-delivery charge (BDT) for this product, snapshotted. */
   advanceCharge?: number;
+  /** Selected food package id (mango pre-built package lines). */
+  packageId?: string;
+  /** Display label of the chosen package (e.g. "Family pack 5 kg"). */
+  packageLabel?: string;
+  /** Package weight (kg), captured at add-to-cart time. */
+  packageWeightKg?: number;
 }
 
 export interface Address {
@@ -316,6 +370,12 @@ export interface Order {
   advanceRef?: string;
   /** Customer-attached images at checkout. */
   orderImages?: string[];
+  /**
+   * `food` orders only — when true, the customer chose "Pay Later" for
+   * the advance-delivery flow, so no upfront tx ID was collected. The
+   * shop's representative will call to confirm the advance manually.
+   */
+  advancePaymentDeferred?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -493,6 +553,33 @@ export interface SiteSettings {
   seoDescriptionBn: string;
   seoKeywords: string;
   ogImage: string;
+  /**
+   * Optional image (URL) shown on the Checkout page when the cart
+   * contains any food / mango lines. Admin uploads it to explain the
+   * courier-payment process visually. Empty hides the section.
+   */
+  foodCheckoutImage?: string;
+  /**
+   * Optional caption shown above the food checkout image (EN/BN).
+   */
+  foodCheckoutImageNote?: string;
+  foodCheckoutImageNoteBn?: string;
+  /**
+   * Advance-delivery flow toggle for food / mango orders. When `enabled`
+   * is true, the checkout page renders an editable notice + a "Pay Now
+   * Online" / "Pay Later" toggle. "Pay Later" defers the advance to a
+   * follow-up call with the shop's representative (no upfront tx ID).
+   * When `enabled` is false, the legacy advance flow runs unchanged.
+   */
+  advanceDeliveryFlow?: {
+    enabled: boolean;
+    /** Notice displayed above the Pay Now / Pay Later toggle. */
+    noticeText: string;
+    noticeTextBn?: string;
+    /** Note shown when the customer picks "Pay Later". */
+    payLaterText: string;
+    payLaterTextBn?: string;
+  };
 }
 
 /**

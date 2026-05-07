@@ -1,10 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CartItem, CrateOption, Product, ProductVariant } from '../types';
+import type { CartItem, CrateOption, FoodPackage, Product, ProductVariant } from '../types';
 
 interface AddOptions {
   variant?: ProductVariant;
   crate?: CrateOption;
+  /**
+   * Pre-built food package (mango). When set, the line is added as a
+   * package SKU (`qty` = number of packages, integer). Variant/crate
+   * options are ignored — the package carries its own crate inline.
+   */
+  pkg?: FoodPackage;
 }
 
 interface CartState {
@@ -37,12 +43,15 @@ interface CartState {
 
 /**
  * Stable composite key for a cart line. Two lines with the same product
- * but different variants (e.g. clothing in size M vs L) are kept apart
- * so the customer can order both. Crate is intentionally NOT in the
- * key so the customer can switch crates on the same line.
+ * but different variants (e.g. clothing in size M vs L) — or different
+ * food packages (e.g. 5 kg vs 10 kg pack) — are kept apart so the
+ * customer can order both. Crate is intentionally NOT in the key so the
+ * customer can switch crates on the same line.
  */
-export function cartLineKey(item: Pick<CartItem, 'productId' | 'variantId'>): string {
-  return `${item.productId}|${item.variantId ?? ''}`;
+export function cartLineKey(
+  item: Pick<CartItem, 'productId' | 'variantId' | 'packageId'>,
+): string {
+  return `${item.productId}|${item.variantId ?? ''}|${item.packageId ?? ''}`;
 }
 
 /**
@@ -67,6 +76,51 @@ export const useCartStore = create<CartState>()(
       add: (p, qty = 1, extras) => {
         const variant = extras?.variant;
         const crate = extras?.crate;
+        const pkg = extras?.pkg;
+
+        // Pre-built food package — `qty` is integer count of packages.
+        if (pkg) {
+          const key = cartLineKey({ productId: p.id, packageId: pkg.id });
+          const stock = pkg.stock ?? Number.MAX_SAFE_INTEGER;
+          const incPkg = Math.max(1, Math.floor(qty));
+          const cratePrice = pkg.crate ? pkg.crate.price : undefined;
+          const crateLabel = pkg.crate
+            ? `${pkg.crate.name}${pkg.crate.quantityKg ? ` · ${pkg.crate.quantityKg} kg` : ''}`
+            : undefined;
+          const existing = get().items.find((i) => cartLineKey(i) === key);
+          if (existing) {
+            const merged = Math.min(stock, existing.quantity + incPkg);
+            set({
+              items: get().items.map((i) =>
+                cartLineKey(i) === key ? { ...i, quantity: merged } : i,
+              ),
+            });
+          } else {
+            set({
+              items: [
+                ...get().items,
+                {
+                  productId: p.id,
+                  name: p.name,
+                  price: pkg.price,
+                  image: p.images[0],
+                  quantity: Math.min(stock, incPkg),
+                  stock: pkg.stock ?? p.stock,
+                  slug: p.slug,
+                  productType: p.type,
+                  packageId: pkg.id,
+                  packageLabel: pkg.name,
+                  packageWeightKg: pkg.weightKg,
+                  crateId: pkg.crate ? `pkg-${pkg.id}-crate` : undefined,
+                  crateLabel,
+                  cratePrice,
+                },
+              ],
+            });
+          }
+          return;
+        }
+
         const key = cartLineKey({ productId: p.id, variantId: variant?.id });
         const stock = variant ? variant.stock : p.stock;
 
