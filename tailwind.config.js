@@ -63,12 +63,18 @@ export default {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.6' },
         },
+        'marquee-x': {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.5s ease-out',
         'slide-up': 'slide-up 0.6s ease-out',
         shimmer: 'shimmer 2s infinite linear',
         'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
+        'marquee-x': 'marquee-x 40s linear infinite',
+        'marquee-x-slow': 'marquee-x 60s linear infinite',
       },
     },
   },
