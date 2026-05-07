@@ -43,7 +43,7 @@ import {
 import type { BankAccountDetails, PaymentMethodsEnabled } from '../../types';
 
 type FormState = SiteSettings;
-type SettingsTab = 'general' | 'apis';
+type SettingsTab = 'general' | 'payments' | 'apis';
 
 export function AdminSettings() {
   const settings = useSettingsStore((s) => s.settings);
@@ -264,6 +264,9 @@ export function AdminSettings() {
         <TabButton current={tab} value="general" onChange={setTab}>
           General
         </TabButton>
+        <TabButton current={tab} value="payments" onChange={setTab}>
+          Payments
+        </TabButton>
         <TabButton current={tab} value="apis" onChange={setTab}>
           APIs &amp; Integrations
         </TabButton>
@@ -310,20 +313,9 @@ export function AdminSettings() {
           }
         />
 
-        <FoodCheckoutImageSection form={form} setForm={setForm} />
-
-        <AdvanceDeliveryFlowSection form={form} setForm={setForm} />
-
         <TopbarSection form={form} setForm={setForm} />
 
         <HomeFeatureCardsSection form={form} setForm={setForm} />
-
-        <Section
-          title="Payments"
-          subtitle="Toggle each payment method on/off and configure the customer-facing details."
-        >
-          <PaymentMethodsCard form={form} setForm={setForm} />
-        </Section>
 
         <Section title="Admin contact" subtitle="Where new-order alerts are sent.">
           <Field label="Admin SMS phone (digits)" placeholder="+8801..." {...bind('adminSmsPhone')} />
@@ -361,6 +353,21 @@ export function AdminSettings() {
             </div>
           </div>
         </Section>
+      </div>
+      )}
+
+      {tab === 'payments' && (
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <Section
+          title="Payment methods"
+          subtitle="Toggle each payment method on/off and configure the customer-facing details (bKash / Nagad numbers, bank account, COD)."
+        >
+          <PaymentMethodsCard form={form} setForm={setForm} />
+        </Section>
+
+        <AdvanceDeliveryFlowSection form={form} setForm={setForm} />
+
+        <FoodCheckoutImageSection form={form} setForm={setForm} />
       </div>
       )}
 
