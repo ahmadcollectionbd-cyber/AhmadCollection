@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { FiSave, FiSend, FiRefreshCw, FiSettings } from 'react-icons/fi';
+import {
+  FiSave,
+  FiSend,
+  FiRefreshCw,
+  FiSettings,
+  FiTrash2,
+  FiPlus,
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { saveSettings, DEFAULT_SETTINGS, DEFAULT_MANGO_DELIVERY } from '../../lib/settings';
+import {
+  saveSettings,
+  DEFAULT_SETTINGS,
+  DEFAULT_MANGO_DELIVERY,
+  DEFAULT_HOME_FEATURE_CARDS,
+} from '../../lib/settings';
 import { initGA, initPixel } from '../../lib/pixel';
 import { sendEmailViaEmailJs, isEmailJsConfigured } from '../../lib/emailjs';
 import { sendEmailViaServerless } from '../../lib/notifications';
@@ -14,7 +26,12 @@ import {
   coupons as seedCoupons,
   products as seedProducts,
 } from '../../data/seed';
-import type { SiteSettings } from '../../types';
+import type {
+  HomeFeatureCard,
+  HomeFeatureCardIcon,
+  HomeFeatureCardPalette,
+  SiteSettings,
+} from '../../types';
 import { ImageInput } from '../../components/ui/ImageInput';
 import { PageHeader } from '../../components/admin/PageHeader';
 import {
@@ -26,12 +43,14 @@ import {
 import type { BankAccountDetails, PaymentMethodsEnabled } from '../../types';
 
 type FormState = SiteSettings;
+type SettingsTab = 'general' | 'apis';
 
 export function AdminSettings() {
   const settings = useSettingsStore((s) => s.settings);
   const loaded = useSettingsStore((s) => s.loaded);
   const [form, setForm] = useState<FormState>(settings);
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<SettingsTab>('general');
   const hydrated = useRef(false);
 
   // Hydrate the form from Firestore once the realtime settings doc finishes
@@ -241,6 +260,16 @@ export function AdminSettings() {
         }
       />
 
+      <div className="mt-6 inline-flex w-full overflow-x-auto rounded-2xl border border-slate-200/70 bg-white/70 p-1 dark:border-white/10 dark:bg-slate-900/40">
+        <TabButton current={tab} value="general" onChange={setTab}>
+          General
+        </TabButton>
+        <TabButton current={tab} value="apis" onChange={setTab}>
+          APIs &amp; Integrations
+        </TabButton>
+      </div>
+
+      {tab === 'general' && (
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Section
           title="Delivery charges"
@@ -285,6 +314,10 @@ export function AdminSettings() {
 
         <AdvanceDeliveryFlowSection form={form} setForm={setForm} />
 
+        <TopbarSection form={form} setForm={setForm} />
+
+        <HomeFeatureCardsSection form={form} setForm={setForm} />
+
         <Section
           title="Payments"
           subtitle="Toggle each payment method on/off and configure the customer-facing details."
@@ -302,6 +335,37 @@ export function AdminSettings() {
           <Field label="Support email" {...bind('supportEmail')} />
         </Section>
 
+        <Section title="Branding" subtitle="Brand name and short taglines used across the site.">
+          <Field label="Brand name" {...bind('brandName')} />
+          <Field label="Tagline (EN)" {...bind('brandTagline')} />
+          <Field label="Tagline (BN)" {...bind('brandTaglineBn')} />
+        </Section>
+
+        <Section title="Social" subtitle="Public social profile URLs shown in the footer.">
+          <Field label="Facebook URL" {...bind('facebookUrl')} />
+          <Field label="Instagram URL" {...bind('instagramUrl')} />
+        </Section>
+
+        <Section title="SEO" subtitle="Default meta tags. Per-page tags can override these.">
+          <Field label="SEO description (EN)" {...bind('seoDescription')} />
+          <Field label="SEO description (BN)" {...bind('seoDescriptionBn')} />
+          <Field label="SEO keywords (comma separated)" {...bind('seoKeywords')} />
+          <div className="sm:col-span-2">
+            <span className="label">Open Graph image (upload or paste URL)</span>
+            <div className="mt-1">
+              <ImageInput
+                value={form.ogImage ?? ''}
+                onChange={(url) => setForm((p) => ({ ...p, ogImage: url }))}
+                folder="settings"
+              />
+            </div>
+          </div>
+        </Section>
+      </div>
+      )}
+
+      {tab === 'apis' && (
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <Section
           title="Notification webhooks"
           subtitle="POST endpoints for SMS / Email gateways (Zapier, Make, n8n, custom backend). Leave empty to disable that channel."
@@ -417,38 +481,15 @@ export function AdminSettings() {
           </div>
         </Section>
 
-        <Section title="Tracking" subtitle="Marketing pixels — leave empty to disable.">
+        <Section
+          title="Tracking pixels"
+          subtitle="Marketing analytics IDs — leave empty to disable. Meta Pixel powers Facebook ad retargeting; GA4 powers Google Analytics."
+        >
           <Field label="Meta Pixel ID" placeholder="e.g. 123456789012345" {...bind('metaPixelId')} />
           <Field label="Google Analytics 4 ID" placeholder="G-XXXXXXX" {...bind('gaMeasurementId')} />
         </Section>
-
-        <Section title="Branding" subtitle="Brand name and short taglines used across the site.">
-          <Field label="Brand name" {...bind('brandName')} />
-          <Field label="Tagline (EN)" {...bind('brandTagline')} />
-          <Field label="Tagline (BN)" {...bind('brandTaglineBn')} />
-        </Section>
-
-        <Section title="Social" subtitle="Public social profile URLs shown in the footer.">
-          <Field label="Facebook URL" {...bind('facebookUrl')} />
-          <Field label="Instagram URL" {...bind('instagramUrl')} />
-        </Section>
-
-        <Section title="SEO" subtitle="Default meta tags. Per-page tags can override these.">
-          <Field label="SEO description (EN)" {...bind('seoDescription')} />
-          <Field label="SEO description (BN)" {...bind('seoDescriptionBn')} />
-          <Field label="SEO keywords (comma separated)" {...bind('seoKeywords')} />
-          <div className="sm:col-span-2">
-            <span className="label">Open Graph image (upload or paste URL)</span>
-            <div className="mt-1">
-              <ImageInput
-                value={form.ogImage ?? ''}
-                onChange={(url) => setForm((p) => ({ ...p, ogImage: url }))}
-                folder="settings"
-              />
-            </div>
-          </div>
-        </Section>
       </div>
+      )}
 
       <div className="card mt-6 border-emerald-200 bg-emerald-50/60 p-4 text-sm dark:border-emerald-500/30 dark:bg-emerald-500/10">
         <h2 className="font-display text-sm font-bold uppercase tracking-wider">Catalog data</h2>
@@ -1023,6 +1064,344 @@ function PaymentMethodsCard({
             placeholder="9 digits, used for online transfers"
           />
         </label>
+      </div>
+    </div>
+  );
+}
+
+function TabButton({
+  current,
+  value,
+  onChange,
+  children,
+}: {
+  current: SettingsTab;
+  value: SettingsTab;
+  onChange: (v: SettingsTab) => void;
+  children: React.ReactNode;
+}) {
+  const active = current === value;
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(value)}
+      className={
+        'flex-1 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-semibold transition sm:text-sm ' +
+        (active
+          ? 'bg-brand-500 text-white shadow'
+          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800')
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+const DEFAULT_TOPBAR = {
+  enabled: true,
+  text: 'Free delivery on orders above ৳{free}',
+  textBn: '৳{free}+ অর্ডারে ফ্রি ডেলিভারি',
+};
+
+function TopbarSection({
+  form,
+  setForm,
+}: {
+  form: SiteSettings;
+  setForm: React.Dispatch<React.SetStateAction<SiteSettings>>;
+}) {
+  const cfg = form.topbar ?? DEFAULT_TOPBAR;
+  function patch(p: Partial<NonNullable<SiteSettings['topbar']>>) {
+    setForm((s) => ({ ...s, topbar: { ...DEFAULT_TOPBAR, ...cfg, ...p } }));
+  }
+  return (
+    <div className="card relative overflow-hidden p-5 xl:col-span-2">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-brand-400 to-cyan-500"
+      />
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
+            Top announcement bar
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            The thin green strip above the main navigation. Use the placeholder{' '}
+            <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">{'{free}'}</code>{' '}
+            to insert the free-delivery threshold from the Delivery section.
+            Toggle off to hide the bar entirely.
+          </p>
+        </div>
+        <label className="inline-flex items-center gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300"
+            checked={cfg.enabled !== false}
+            onChange={(e) => patch({ enabled: e.target.checked })}
+          />
+          {cfg.enabled !== false ? 'Visible' : 'Hidden'}
+        </label>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="label">Message (English)</span>
+          <input
+            className="input mt-1"
+            value={cfg.text}
+            onChange={(e) => patch({ text: e.target.value })}
+            placeholder="Free delivery on orders above ৳{free}"
+          />
+        </label>
+        <label className="block">
+          <span className="label">Message (বাংলা)</span>
+          <input
+            className="input mt-1 font-bn"
+            value={cfg.textBn ?? ''}
+            onChange={(e) => patch({ textBn: e.target.value })}
+            placeholder="৳{free}+ অর্ডারে ফ্রি ডেলিভারি"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+const PALETTE_OPTIONS: { value: HomeFeatureCardPalette; label: string }[] = [
+  { value: 'brand', label: 'Brand (green)' },
+  { value: 'amber', label: 'Amber' },
+  { value: 'emerald', label: 'Emerald' },
+  { value: 'rose', label: 'Rose' },
+  { value: 'violet', label: 'Violet' },
+  { value: 'sky', label: 'Sky' },
+];
+
+const ICON_OPTIONS: { value: HomeFeatureCardIcon; label: string }[] = [
+  { value: 'percent', label: 'Percent (%)' },
+  { value: 'shield', label: 'Shield' },
+  { value: 'truck', label: 'Truck' },
+  { value: 'gift', label: 'Gift' },
+  { value: 'star', label: 'Star' },
+  { value: 'heart', label: 'Heart' },
+];
+
+function HomeFeatureCardsSection({
+  form,
+  setForm,
+}: {
+  form: SiteSettings;
+  setForm: React.Dispatch<React.SetStateAction<SiteSettings>>;
+}) {
+  const cards = form.homeFeatureCards ?? DEFAULT_HOME_FEATURE_CARDS();
+
+  function commit(next: HomeFeatureCard[]) {
+    setForm((s) => ({ ...s, homeFeatureCards: next }));
+  }
+
+  function patchCard(idx: number, patch: Partial<HomeFeatureCard>) {
+    commit(cards.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+  }
+
+  function removeCard(idx: number) {
+    if (!confirm('Remove this card?')) return;
+    commit(cards.filter((_, i) => i !== idx));
+  }
+
+  function addCard() {
+    const fresh: HomeFeatureCard = {
+      id: `card-${Date.now()}`,
+      enabled: true,
+      badge: 'New',
+      badgeBn: 'নতুন',
+      title: 'New offer',
+      titleBn: 'নতুন অফার',
+      subtitle: 'Tell customers what makes this special.',
+      subtitleBn: 'গ্রাহকদের জানান কী বিশেষ।',
+      ctaText: 'Shop now',
+      ctaTextBn: 'কিনুন',
+      link: '/shop',
+      palette: 'brand',
+      icon: 'gift',
+    };
+    commit([...cards, fresh]);
+  }
+
+  return (
+    <div className="card relative overflow-hidden p-5 xl:col-span-2">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 via-rose-500 to-violet-500"
+      />
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
+            Home feature cards
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            The two coloured cards on the home page (originally "Free delivery
+            / Save up to 25%" and "Quality Promise"). Edit copy, swap the icon
+            and palette, change the link target or hide a card without
+            removing it.
+          </p>
+        </div>
+        <button type="button" onClick={addCard} className="btn-outline text-xs">
+          <FiPlus className="h-3.5 w-3.5" /> Add card
+        </button>
+      </div>
+
+      <div className="grid gap-4">
+        {cards.map((card, idx) => (
+          <div
+            key={card.id}
+            className="rounded-2xl border border-slate-200/70 bg-slate-50/60 p-4 dark:border-white/10 dark:bg-slate-900/40"
+          >
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Card {idx + 1}
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="inline-flex items-center gap-2 text-xs font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={card.enabled !== false}
+                    onChange={(e) => patchCard(idx, { enabled: e.target.checked })}
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                  {card.enabled !== false ? 'Shown' : 'Hidden'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => removeCard(idx)}
+                  className="rounded-lg p-1.5 text-accent-500 hover:bg-accent-500/10"
+                  title="Remove card"
+                >
+                  <FiTrash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="label">Badge (English)</span>
+                <input
+                  className="input mt-1"
+                  value={card.badge}
+                  onChange={(e) => patchCard(idx, { badge: e.target.value })}
+                  placeholder="Free delivery"
+                />
+              </label>
+              <label className="block">
+                <span className="label">Badge (বাংলা)</span>
+                <input
+                  className="input mt-1 font-bn"
+                  value={card.badgeBn ?? ''}
+                  onChange={(e) => patchCard(idx, { badgeBn: e.target.value })}
+                  placeholder="ফ্রি ডেলিভারি"
+                />
+              </label>
+              <label className="block">
+                <span className="label">Title (English)</span>
+                <input
+                  className="input mt-1"
+                  value={card.title}
+                  onChange={(e) => patchCard(idx, { title: e.target.value })}
+                  placeholder="Save up to 25%"
+                />
+              </label>
+              <label className="block">
+                <span className="label">Title (বাংলা)</span>
+                <input
+                  className="input mt-1 font-bn"
+                  value={card.titleBn ?? ''}
+                  onChange={(e) => patchCard(idx, { titleBn: e.target.value })}
+                  placeholder="২৫% পর্যন্ত সাশ্রয়"
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="label">Subtitle (English)</span>
+                <textarea
+                  className="input mt-1 min-h-[60px]"
+                  value={card.subtitle}
+                  onChange={(e) => patchCard(idx, { subtitle: e.target.value })}
+                  placeholder="On premium honey, ghee, and mustard oil — limited time only."
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="label">Subtitle (বাংলা)</span>
+                <textarea
+                  className="input mt-1 min-h-[60px] font-bn"
+                  value={card.subtitleBn ?? ''}
+                  onChange={(e) => patchCard(idx, { subtitleBn: e.target.value })}
+                  placeholder="প্রিমিয়াম মধু, ঘি এবং সরিষার তেলে — সীমিত সময়ের জন্য।"
+                />
+              </label>
+              <label className="block">
+                <span className="label">CTA text (English)</span>
+                <input
+                  className="input mt-1"
+                  value={card.ctaText}
+                  onChange={(e) => patchCard(idx, { ctaText: e.target.value })}
+                  placeholder="Shop now"
+                />
+              </label>
+              <label className="block">
+                <span className="label">CTA text (বাংলা)</span>
+                <input
+                  className="input mt-1 font-bn"
+                  value={card.ctaTextBn ?? ''}
+                  onChange={(e) => patchCard(idx, { ctaTextBn: e.target.value })}
+                  placeholder="কিনুন"
+                />
+              </label>
+              <label className="block">
+                <span className="label">Link target</span>
+                <input
+                  className="input mt-1"
+                  value={card.link}
+                  onChange={(e) => patchCard(idx, { link: e.target.value })}
+                  placeholder="/shop"
+                />
+              </label>
+              <label className="block">
+                <span className="label">Palette</span>
+                <select
+                  className="input mt-1"
+                  value={card.palette}
+                  onChange={(e) =>
+                    patchCard(idx, { palette: e.target.value as HomeFeatureCardPalette })
+                  }
+                >
+                  {PALETTE_OPTIONS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="label">Icon</span>
+                <select
+                  className="input mt-1"
+                  value={card.icon}
+                  onChange={(e) =>
+                    patchCard(idx, { icon: e.target.value as HomeFeatureCardIcon })
+                  }
+                >
+                  {ICON_OPTIONS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        ))}
+        {cards.length === 0 && (
+          <p className="text-xs text-slate-500">
+            No cards configured — the home page will hide this section.
+          </p>
+        )}
       </div>
     </div>
   );

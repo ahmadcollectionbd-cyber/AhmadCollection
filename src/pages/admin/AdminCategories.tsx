@@ -17,35 +17,36 @@ export function AdminCategories() {
   const [name, setName] = useState('');
   const [nameBn, setNameBn] = useState('');
   const [image, setImage] = useState('');
+  const [icon, setIcon] = useState('');
   const [advanceCharge, setAdvanceCharge] = useState<string>('');
   const [editing, setEditing] = useState<string | null>(null);
 
   function submit() {
     if (!name.trim()) return toast.error('Name required');
     const advance = advanceCharge.trim() === '' ? undefined : Math.max(0, Number(advanceCharge) || 0);
+    // We persist empty strings (rather than `undefined`) so that clearing
+    // the image / icon actually overwrites the old Firestore value. Setting
+    // a field to `undefined` makes Firestore silently drop the patch and
+    // keep the previous image — which is the bug the admin reported.
+    const payload = {
+      name: name.trim(),
+      nameBn: nameBn.trim() || undefined,
+      image: image.trim(),
+      icon: icon.trim(),
+      slug: slugify(name),
+      advanceDeliveryCharge: advance,
+    };
     if (editing) {
-      updateCategory(editing, {
-        name: name.trim(),
-        nameBn: nameBn.trim() || undefined,
-        image: image.trim() || undefined,
-        slug: slugify(name),
-        advanceDeliveryCharge: advance,
-      });
+      updateCategory(editing, payload);
       toast.success('Category updated');
     } else {
-      addCategory({
-        id: `cat-${Date.now()}`,
-        name: name.trim(),
-        nameBn: nameBn.trim() || undefined,
-        image: image.trim() || undefined,
-        slug: slugify(name),
-        advanceDeliveryCharge: advance,
-      });
+      addCategory({ id: `cat-${Date.now()}`, ...payload });
       toast.success('Category created');
     }
     setName('');
     setNameBn('');
     setImage('');
+    setIcon('');
     setAdvanceCharge('');
     setEditing(null);
   }
@@ -69,6 +70,27 @@ export function AdminCategories() {
               Image (upload or paste URL)
             </label>
             <ImageInput value={image} onChange={setImage} folder="categories" />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Shown on the home category strip. When set, the image takes
+              priority over the icon below.
+            </p>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label mb-1 block text-xs uppercase tracking-wider text-slate-500">
+              Icon (emoji)
+            </label>
+            <input
+              className="input"
+              placeholder="e.g. 🍯, 🥭, 🌶️"
+              value={icon}
+              onChange={(e) => setIcon(e.target.value.slice(0, 4))}
+              maxLength={4}
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Optional fallback shown when no image is uploaded. Paste any
+              emoji from your keyboard. Leave empty to use the bundled
+              default for this category.
+            </p>
           </div>
           <div className="sm:col-span-2">
             <label className="label mb-1 block text-xs uppercase tracking-wider text-slate-500">
@@ -101,7 +123,15 @@ export function AdminCategories() {
           return (
             <li key={c.id} className="card overflow-hidden">
               <div className="flex items-center gap-3 p-3">
-                {c.image ? <img src={c.image} alt="" className="h-12 w-12 rounded-lg object-cover" /> : <div className="h-12 w-12 rounded-lg bg-gradient-soft" />}
+                {c.image ? (
+                  <img src={c.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                ) : c.icon ? (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-soft text-2xl">
+                    {c.icon}
+                  </div>
+                ) : (
+                  <div className="h-12 w-12 rounded-lg bg-gradient-soft" />
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">{c.name}</div>
                   <div className="text-xs text-slate-500">{c.nameBn || '—'} · {count} items</div>
@@ -113,6 +143,7 @@ export function AdminCategories() {
                       setName(c.name);
                       setNameBn(c.nameBn || '');
                       setImage(c.image || '');
+                      setIcon(c.icon || '');
                       setAdvanceCharge(
                         typeof c.advanceDeliveryCharge === 'number' ? String(c.advanceDeliveryCharge) : '',
                       );
