@@ -188,6 +188,19 @@ export function Checkout() {
   const shipping = standardShipping + mangoShipping;
   const districtMatch = findDistrict(settings, watchedCity);
 
+  // Mango / food advance comes straight from the Mango/Steadfast section:
+  // - default: the minimum-charge value for the resolved (zone, mode)
+  // - admin toggle on: the entire computed mango shipping fee
+  // In either case the per-product / per-category advanceDeliveryCharge
+  // is **skipped** for food lines so the customer is never charged
+  // twice. Non-food lines keep using the per-product advance.
+  const mangoAdvance = useMemo(() => {
+    if (!hasMango) return 0;
+    const cfg = settings.mangoDelivery ?? DEFAULT_MANGO_DELIVERY;
+    if (cfg.advanceFullShipping) return mangoShipping;
+    return cfg.minimumCharge[mangoZone][deliveryMode] ?? 0;
+  }, [hasMango, settings.mangoDelivery, mangoShipping, mangoZone, deliveryMode]);
+
   // Sum advance-delivery charges per cart line by looking up the live product
   // (so updates to the override are picked up). Per-kg lines pay one charge,
   // unit lines multiply by quantity to mirror the customer's expectation that
@@ -197,13 +210,16 @@ export function Checkout() {
     for (const it of items) {
       const p = products.find((x) => x.id === it.productId);
       if (!p) continue;
+      // Food lines have their advance taken from the Mango/Steadfast
+      // section (mangoAdvance, added once below) — skip per-product.
+      if (hasMango && it.productType === 'food') continue;
       const charge = resolveAdvanceCharge(p, categories);
       if (charge <= 0) continue;
       const isPerKg = it.productType === 'food' && typeof it.weightKg === 'number';
       total += isPerKg ? charge : charge * it.quantity;
     }
-    return total;
-  }, [items, products, categories]);
+    return total + mangoAdvance;
+  }, [items, products, categories, hasMango, mangoAdvance]);
 
   const total = Math.max(0, subtotal - discount + shipping);
   // The optional advance-delivery flow lets the customer defer the upfront
@@ -524,7 +540,10 @@ export function Checkout() {
                     </span>
                   </div>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    Steadfast Courier — choose your zone and pickup mode.
+                    Steadfast Courier — choose Point or Home pickup.
+                    {watchedDistrict
+                      ? ' Zone is locked from your selected address.'
+                      : ' Zone updates automatically once you pick a district.'}
                   </p>
 
                   <div className="mt-2 grid grid-cols-2 gap-2">
@@ -560,19 +579,36 @@ export function Checkout() {
                     ).map((z) => {
                       const cfg = settings.mangoDelivery ?? DEFAULT_MANGO_DELIVERY;
                       const preview = computeMangoShipping(mangoKg, z.id, deliveryMode, cfg);
+                      const zoneLocked = !!watchedDistrict;
+                      const isActive = mangoZone === z.id;
                       return (
                         <button
                           key={z.id}
                           type="button"
-                          onClick={() => setMangoZone(z.id)}
+                          onClick={() => {
+                            if (zoneLocked) return;
+                            setMangoZone(z.id);
+                          }}
+                          aria-pressed={isActive}
+                          aria-disabled={zoneLocked && !isActive}
+                          title={
+                            zoneLocked && !isActive
+                              ? 'Zone is locked — change your address to pick a different zone'
+                              : undefined
+                          }
                           className={`rounded-2xl border p-3 text-left transition ${
-                            mangoZone === z.id
+                            isActive
                               ? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/30'
                               : 'border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-slate-900/60'
-                          }`}
+                          } ${zoneLocked && !isActive ? 'cursor-not-allowed opacity-50' : ''}`}
                         >
-                          <div className="text-xs uppercase tracking-widest text-slate-400">
-                            {z.label}
+                          <div className="flex items-center justify-between gap-2 text-xs uppercase tracking-widest text-slate-400">
+                            <span>{z.label}</span>
+                            {zoneLocked && isActive && (
+                              <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300">
+                                AUTO
+                              </span>
+                            )}
                           </div>
                           <div className="mt-1 text-sm font-bold">{formatBDT(preview)}</div>
                         </button>

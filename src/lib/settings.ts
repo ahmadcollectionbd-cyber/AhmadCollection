@@ -36,6 +36,7 @@ export const DEFAULT_MANGO_DELIVERY: MangoDeliveryConfig = {
     districtOutside: { point: 120, home: 130 },
     upozila: { point: 120, home: 130 },
   },
+  advanceFullShipping: false,
 };
 
 /**
