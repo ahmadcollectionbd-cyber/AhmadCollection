@@ -1,5 +1,11 @@
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import type { DeliveryMode, MangoDeliveryConfig, MangoZone, SiteSettings } from '../types';
+import type {
+  DeliveryMode,
+  HomeFeatureCard,
+  MangoDeliveryConfig,
+  MangoZone,
+  SiteSettings,
+} from '../types';
 import { db, isFirebaseConfigured } from './firebase';
 import { clearFirestoreError, reportFirestoreError } from '../stores/firestoreStatusStore';
 
@@ -31,6 +37,46 @@ export const DEFAULT_MANGO_DELIVERY: MangoDeliveryConfig = {
     upozila: { point: 120, home: 130 },
   },
 };
+
+/**
+ * Builder for the default home-page feature cards. Returns a fresh
+ * array every call so the admin form can mutate it safely without
+ * touching the shared default reference.
+ */
+export function DEFAULT_HOME_FEATURE_CARDS(): HomeFeatureCard[] {
+  return [
+    {
+      id: 'card-1',
+      enabled: true,
+      badge: 'Free delivery',
+      badgeBn: 'ফ্রি ডেলিভারি',
+      title: 'Save up to 25%',
+      titleBn: '২৫% পর্যন্ত সাশ্রয়',
+      subtitle: 'On premium honey, ghee, and mustard oil — limited time only.',
+      subtitleBn: 'প্রিমিয়াম মধু, ঘি এবং সরিষার তেলে — সীমিত সময়ের জন্য।',
+      ctaText: 'Shop now',
+      ctaTextBn: 'কিনুন',
+      link: '/shop',
+      palette: 'brand',
+      icon: 'percent',
+    },
+    {
+      id: 'card-2',
+      enabled: true,
+      badge: 'Quality Promise',
+      badgeBn: 'মান নিশ্চিত',
+      title: '100% Pure Products',
+      titleBn: '১০০% খাঁটি পণ্য',
+      subtitle: 'Verified quality, no compromise',
+      subtitleBn: 'যাচাইকৃত মান, কোনো আপস নয়',
+      ctaText: 'Explore',
+      ctaTextBn: 'দেখুন',
+      link: '/shop',
+      palette: 'amber',
+      icon: 'shield',
+    },
+  ];
+}
 
 export const DEFAULT_SETTINGS: SiteSettings = {
   brandName: 'Ahmad Collection',
@@ -102,6 +148,12 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     payLaterTextBn:
       'অর্ডার কনফার্ম করতে আমাদের প্রতিনিধি দ্রুত আপনাকে কল করে কনফার্ম করবেন, আপনি তখন পেমেন্ট করতে পারবেন।',
   },
+  topbar: {
+    enabled: true,
+    text: 'Free delivery on orders above ৳{free}',
+    textBn: '৳{free}+ অর্ডারে ফ্রি ডেলিভারি',
+  },
+  homeFeatureCards: DEFAULT_HOME_FEATURE_CARDS(),
 };
 
 const SETTINGS_PATH = ['settings', 'site'] as const;

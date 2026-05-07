@@ -88,15 +88,10 @@ export const useDataStore = create<DataState>()(
       banners: seedBanners,
       coupons: seedCoupons,
       reviews: [],
-      notifications: [
-        {
-          id: 'welcome',
-          title: 'Welcome to Ahmad Collection',
-          body: 'Use code WELCOME10 for 10% off your first order.',
-          read: false,
-          createdAt: Date.now(),
-        },
-      ],
+      // Local notifications start empty — admins broadcast announcements
+      // through the Announcements panel instead of a hard-coded welcome
+      // toast that everyone is forced to dismiss.
+      notifications: [],
       announcements: [],
       readAnnouncementIds: [],
       ready: false,
@@ -256,7 +251,21 @@ export const useDataStore = create<DataState>()(
           reviews: [],
         }),
     }),
-    { name: 'ac-data', version: 2 },
+    {
+      name: 'ac-data',
+      // v3 wipes the legacy `welcome` toast so existing browsers stop
+      // seeing the hard-coded "Use code WELCOME10" notification.
+      version: 3,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<DataState>;
+        if (version < 3) {
+          state.notifications = (state.notifications ?? []).filter(
+            (n) => n.id !== 'welcome',
+          );
+        }
+        return state as DataState;
+      },
+    },
   ),
 );
 

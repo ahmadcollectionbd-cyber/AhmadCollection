@@ -82,6 +82,13 @@ export interface Category {
   nameBn?: string;
   slug: string;
   image?: string;
+  /**
+   * Optional emoji or short text shown in the home-page category strip
+   * when no image is uploaded (and overrides the legacy slug-based
+   * default emoji map). Lets the admin pick any emoji from their device
+   * keyboard without code changes.
+   */
+  icon?: string;
   parentId?: string | null;
   description?: string;
   /**
@@ -580,6 +587,43 @@ export interface SiteSettings {
     payLaterText: string;
     payLaterTextBn?: string;
   };
+  /**
+   * Top announcement bar (the green strip above the main navbar). The
+   * admin can edit the EN/BN text and toggle the bar on/off entirely.
+   * Defaults to a "Free delivery on orders above ৳N" message that uses
+   * `freeDeliveryAbove` for the threshold.
+   */
+  topbar?: {
+    enabled: boolean;
+    text: string;
+    textBn?: string;
+  };
+  /**
+   * Editable feature cards rendered below the home banner (the green
+   * "Save up to 25%" + amber "Quality Promise" cards). Each card has a
+   * badge, headline, subtitle, CTA, link target and color palette.
+   * Hide a card by setting `enabled: false`.
+   */
+  homeFeatureCards?: HomeFeatureCard[];
+}
+
+export type HomeFeatureCardPalette = 'brand' | 'amber' | 'emerald' | 'rose' | 'violet' | 'sky';
+export type HomeFeatureCardIcon = 'percent' | 'shield' | 'truck' | 'gift' | 'star' | 'heart';
+
+export interface HomeFeatureCard {
+  id: string;
+  enabled: boolean;
+  badge: string;
+  badgeBn?: string;
+  title: string;
+  titleBn?: string;
+  subtitle: string;
+  subtitleBn?: string;
+  ctaText: string;
+  ctaTextBn?: string;
+  link: string;
+  palette: HomeFeatureCardPalette;
+  icon: HomeFeatureCardIcon;
 }
 
 /**

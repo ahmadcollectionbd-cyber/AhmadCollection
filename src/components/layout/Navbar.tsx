@@ -11,6 +11,7 @@ import { useWishlistStore } from '../../stores/wishlistStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useDataStore } from '../../stores/dataStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useLangStore } from '../../stores/langStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { callLink, whatsappLink } from '../../lib/utils';
@@ -26,6 +27,14 @@ export function Navbar() {
   const announcements = useDataStore((s) => s.announcements);
   const readAnnouncementIds = useDataStore((s) => s.readAnnouncementIds);
   const settings = useSettingsStore((s) => s.settings);
+  const lang = useLangStore((s) => s.lang);
+  const topbar = settings.topbar ?? { enabled: true, text: '', textBn: '' };
+  const topbarRaw =
+    lang === 'bn' && topbar.textBn ? topbar.textBn : topbar.text || '';
+  const topbarText = topbarRaw.replace(
+    /\{free\}/g,
+    String(settings.freeDeliveryAbove || 1500),
+  );
   // Merge admin-broadcast announcements (active only, newest first) into the
   // bell dropdown so customers see admin push notifications alongside local
   // welcome / order updates.
@@ -70,27 +79,29 @@ export function Navbar() {
   return (
     <>
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
-      <div className="hidden md:block border-b border-slate-200/70 bg-brand-500 text-white dark:border-white/10">
-        <div className="section flex h-9 items-center justify-between text-xs">
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1.5">
-              <FiTruck className="h-3.5 w-3.5" />
-              {t('topbar.delivery', 'Free delivery on orders above')} ৳{settings.freeDeliveryAbove || 1500}
-            </span>
-            <span className="hidden lg:inline-flex items-center gap-1.5">
-              <FiMail className="h-3.5 w-3.5" /> {settings.supportEmail}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <a href={callLink(settings.contactPhone)} className="inline-flex items-center gap-1.5 hover:opacity-80">
-              <FiPhone className="h-3.5 w-3.5" /> {settings.contactPhoneDisplay || settings.contactPhone}
-            </a>
-            <a href={whatsappLink('Hello!', settings.whatsappNumber)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:opacity-80">
-              <FaWhatsapp className="h-3.5 w-3.5" /> WhatsApp
-            </a>
+      {topbar.enabled !== false && topbarText && (
+        <div className="hidden md:block border-b border-slate-200/70 bg-brand-500 text-white dark:border-white/10">
+          <div className="section flex h-9 items-center justify-between text-xs">
+            <div className="flex items-center gap-4">
+              <span className={`inline-flex items-center gap-1.5 ${lang === 'bn' && topbar.textBn ? 'font-bn' : ''}`}>
+                <FiTruck className="h-3.5 w-3.5" />
+                {topbarText}
+              </span>
+              <span className="hidden lg:inline-flex items-center gap-1.5">
+                <FiMail className="h-3.5 w-3.5" /> {settings.supportEmail}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <a href={callLink(settings.contactPhone)} className="inline-flex items-center gap-1.5 hover:opacity-80">
+                <FiPhone className="h-3.5 w-3.5" /> {settings.contactPhoneDisplay || settings.contactPhone}
+              </a>
+              <a href={whatsappLink('Hello!', settings.whatsappNumber)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:opacity-80">
+                <FaWhatsapp className="h-3.5 w-3.5" /> WhatsApp
+              </a>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       <div className="section flex h-16 items-center gap-2 sm:gap-3">
         {/* Mobile-only hamburger lives on the LEFT for thumb reach and parity with
             most native shopping apps. The slide-in drawer also enters from the

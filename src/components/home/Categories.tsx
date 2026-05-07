@@ -40,6 +40,8 @@ export function Categories() {
         {categories.map((c, i) => {
           const count = products.filter((p) => p.categoryIds.includes(c.id)).length;
           const visual = CATEGORY_VISUALS[c.slug] ?? { emoji: '🛒', bg: 'bg-slate-50 dark:bg-slate-800/40', border: 'group-hover:border-slate-300' };
+          // Priority: admin-uploaded image > admin-set emoji/icon > legacy slug-based emoji.
+          const customIcon = c.icon?.trim();
           return (
             <motion.div
               key={c.id}
@@ -53,8 +55,17 @@ export function Categories() {
                 to={`/shop?cat=${c.slug}`}
                 className={`group flex w-32 flex-col items-center rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg dark:border-white/10 dark:bg-slate-900/60 sm:w-36 ${visual.border}`}
               >
-                <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${visual.bg} text-3xl transition-transform duration-300 group-hover:scale-110 sm:h-20 sm:w-20 sm:text-4xl`}>
-                  {visual.emoji}
+                <div className={`flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl ${visual.bg} text-3xl transition-transform duration-300 group-hover:scale-110 sm:h-20 sm:w-20 sm:text-4xl`}>
+                  {c.image ? (
+                    <img
+                      src={c.image}
+                      alt={c.name}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    customIcon || visual.emoji
+                  )}
                 </div>
                 <div className={`mt-3 text-center text-xs font-semibold text-slate-800 dark:text-slate-200 sm:text-sm ${lang === 'bn' ? 'font-bn' : ''}`}>
                   {lang === 'bn' && c.nameBn ? c.nameBn : c.name}
