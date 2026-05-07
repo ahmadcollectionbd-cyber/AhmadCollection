@@ -95,7 +95,10 @@ export function Checkout() {
   // choose between paying the advance now (`'now'`) or asking the team to
   // confirm and collect later (`'later'`). The deferred branch persists
   // `advancePaymentDeferred: true` on the order so admins can call back.
-  const [advancePayChoice, setAdvancePayChoice] = useState<'now' | 'later'>('now');
+  // Default to `'later'` so the checkout lands on Pay Later + Cash on
+  // Delivery — admins explicitly asked for that to be the resting state,
+  // and customers who do want to pay upfront can still flip the toggle.
+  const [advancePayChoice, setAdvancePayChoice] = useState<'now' | 'later'>('later');
 
   const coupon = appliedCoupon ? coupons.find((c) => c.code === appliedCoupon && c.active) : null;
   const discount = coupon
