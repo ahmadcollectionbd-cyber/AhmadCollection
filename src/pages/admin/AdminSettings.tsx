@@ -604,6 +604,22 @@ function MangoDeliverySection({
         />
       </div>
 
+      <label className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-300/60 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+          checked={cfg.advanceFullShipping ?? false}
+          onChange={(e) => onChange({ advanceFullShipping: e.target.checked })}
+        />
+        <span>
+          <b>Take full mango delivery as advance.</b> When on, the customer
+          pays the entire Steadfast shipping fee upfront via bKash / Nagad /
+          Bank before the order is confirmed; only the goods total is left
+          as cash on delivery. Replaces the per-product / per-category
+          advance for food / mango lines so it isn&apos;t charged twice.
+        </span>
+      </label>
+
       {MANGO_ZONE_LABELS.map(({ id, label }) => {
         const zone = cfg.zones[id];
         const min = cfg.minimumCharge[id];
