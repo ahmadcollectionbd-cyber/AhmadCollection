@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
-import type { CrateOption, Product, ProductType, ProductVariant, WeightTier } from '../../types';
+import type { CrateOption, FoodPackage, Product, ProductType, ProductVariant, WeightTier } from '../../types';
 import { formatBDT, slugify } from '../../lib/utils';
 import { uploadProductImage } from '../../lib/upload';
 import { PageHeader } from '../../components/admin/PageHeader';
@@ -51,6 +51,7 @@ export function AdminProducts() {
   const [minOrderKg, setMinOrderKg] = useState<number>(5);
   const [weightTiers, setWeightTiers] = useState<WeightTier[]>([]);
   const [crateOptions, setCrateOptions] = useState<CrateOption[]>([]);
+  const [foodPackages, setFoodPackages] = useState<FoodPackage[]>([]);
   const [advanceCharge, setAdvanceCharge] = useState<string>('');
   const [specifications, setSpecifications] = useState<{ key: string; value: string }[]>([]);
 
@@ -69,6 +70,7 @@ export function AdminProducts() {
     setMinOrderKg(5);
     setWeightTiers([]);
     setCrateOptions([]);
+    setFoodPackages([]);
     setAdvanceCharge('');
     setSpecifications([]);
     reset({
@@ -94,6 +96,7 @@ export function AdminProducts() {
     setMinOrderKg(p.minOrderKg ?? 5);
     setWeightTiers(p.weightTiers ?? []);
     setCrateOptions(p.crateOptions ?? []);
+    setFoodPackages(p.foodPackages ?? []);
     setAdvanceCharge(
       typeof p.advanceDeliveryCharge === 'number' ? String(p.advanceDeliveryCharge) : '',
     );
@@ -171,6 +174,32 @@ export function AdminProducts() {
       isFood && crateOptions.length > 0
         ? crateOptions.filter((c) => c.label.trim().length > 0 && c.price >= 0)
         : undefined;
+    const finalPackages =
+      isFood && foodPackages.length > 0
+        ? foodPackages
+            .filter((pkg) => pkg.name.trim().length > 0 && pkg.weightKg > 0 && pkg.price >= 0)
+            .map((pkg) => {
+              const out: FoodPackage = {
+                id: pkg.id,
+                name: pkg.name.trim(),
+                weightKg: pkg.weightKg,
+                price: pkg.price,
+              };
+              if (pkg.nameBn?.trim()) out.nameBn = pkg.nameBn.trim();
+              if (typeof pkg.comparePrice === 'number' && pkg.comparePrice > 0)
+                out.comparePrice = pkg.comparePrice;
+              if (typeof pkg.stock === 'number' && pkg.stock >= 0) out.stock = pkg.stock;
+              if (pkg.crate && pkg.crate.name.trim().length > 0) {
+                out.crate = {
+                  name: pkg.crate.name.trim(),
+                  quantityKg: Math.max(0, pkg.crate.quantityKg || 0),
+                  price: Math.max(0, pkg.crate.price || 0),
+                };
+                if (pkg.crate.nameBn?.trim()) out.crate.nameBn = pkg.crate.nameBn.trim();
+              }
+              return out;
+            })
+        : undefined;
     const finalAdvance =
       advanceCharge.trim() === '' ? undefined : Math.max(0, Number(advanceCharge) || 0);
 
@@ -195,6 +224,7 @@ export function AdminProducts() {
         minOrderKg: finalMinKg,
         weightTiers: finalTiers,
         crateOptions: finalCrates,
+        foodPackages: finalPackages,
         advanceDeliveryCharge: finalAdvance,
         featured: values.featured,
         bestseller: values.bestseller,
@@ -223,6 +253,7 @@ export function AdminProducts() {
         minOrderKg: finalMinKg,
         weightTiers: finalTiers,
         crateOptions: finalCrates,
+        foodPackages: finalPackages,
         advanceDeliveryCharge: finalAdvance,
         featured: values.featured,
         bestseller: values.bestseller,
@@ -677,6 +708,334 @@ export function AdminProducts() {
                             >
                               <FiX className="h-3.5 w-3.5" />
                             </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="label">Pre-built packages (optional)</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFoodPackages((prev) => [
+                            ...prev,
+                            {
+                              id: `pkg-${Date.now()}-${prev.length}`,
+                              name: '',
+                              weightKg: 5,
+                              price: 0,
+                            },
+                          ])
+                        }
+                        className="text-[11px] font-semibold text-emerald-600 hover:underline"
+                      >
+                        + Add package
+                      </button>
+                    </div>
+                    {foodPackages.length === 0 ? (
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        e.g. "Family pack 5 kg ৳1500 + 5 kg crate free". Customers
+                        pick any number of packages, each with its own quantity.
+                      </p>
+                    ) : (
+                      <div className="mt-2 grid gap-3">
+                        {foodPackages.map((pkg, idx) => (
+                          <div
+                            key={pkg.id}
+                            className="rounded-xl border border-emerald-300/60 bg-white/60 p-3 dark:border-emerald-500/20 dark:bg-slate-900/40"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                                Package #{idx + 1}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFoodPackages((prev) => prev.filter((_, i) => i !== idx))
+                                }
+                                className="rounded-md p-1 text-accent-500 hover:bg-accent-500/10"
+                                aria-label="Remove package"
+                              >
+                                <FiX className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                              <label className="text-[11px] text-slate-500">
+                                Name
+                                <input
+                                  type="text"
+                                  value={pkg.name}
+                                  placeholder="Family pack"
+                                  onChange={(e) =>
+                                    setFoodPackages((prev) =>
+                                      prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
+                                    )
+                                  }
+                                  className="input mt-0.5 h-9 py-1.5 text-xs"
+                                />
+                              </label>
+                              <label className="text-[11px] text-slate-500">
+                                Name (Bangla, optional)
+                                <input
+                                  type="text"
+                                  value={pkg.nameBn ?? ''}
+                                  placeholder="ফ্যামিলি প্যাক"
+                                  onChange={(e) =>
+                                    setFoodPackages((prev) =>
+                                      prev.map((x, i) =>
+                                        i === idx ? { ...x, nameBn: e.target.value } : x,
+                                      ),
+                                    )
+                                  }
+                                  className="input mt-0.5 h-9 py-1.5 text-xs"
+                                />
+                              </label>
+                              <label className="text-[11px] text-slate-500">
+                                Weight (kg)
+                                <input
+                                  type="number"
+                                  min={0.5}
+                                  step={0.5}
+                                  value={pkg.weightKg}
+                                  onChange={(e) =>
+                                    setFoodPackages((prev) =>
+                                      prev.map((x, i) =>
+                                        i === idx
+                                          ? { ...x, weightKg: Math.max(0, Number(e.target.value) || 0) }
+                                          : x,
+                                      ),
+                                    )
+                                  }
+                                  className="input mt-0.5 h-9 py-1.5 text-xs"
+                                />
+                              </label>
+                              <label className="text-[11px] text-slate-500">
+                                Price (৳)
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={pkg.price}
+                                  onChange={(e) =>
+                                    setFoodPackages((prev) =>
+                                      prev.map((x, i) =>
+                                        i === idx
+                                          ? { ...x, price: Math.max(0, Number(e.target.value) || 0) }
+                                          : x,
+                                      ),
+                                    )
+                                  }
+                                  className="input mt-0.5 h-9 py-1.5 text-xs"
+                                />
+                              </label>
+                              <label className="text-[11px] text-slate-500">
+                                Compare price (৳, optional)
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={pkg.comparePrice ?? ''}
+                                  onChange={(e) =>
+                                    setFoodPackages((prev) =>
+                                      prev.map((x, i) =>
+                                        i === idx
+                                          ? {
+                                              ...x,
+                                              comparePrice:
+                                                e.target.value === ''
+                                                  ? undefined
+                                                  : Math.max(0, Number(e.target.value)),
+                                            }
+                                          : x,
+                                      ),
+                                    )
+                                  }
+                                  className="input mt-0.5 h-9 py-1.5 text-xs"
+                                />
+                              </label>
+                              <label className="text-[11px] text-slate-500">
+                                Stock (optional)
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={pkg.stock ?? ''}
+                                  placeholder="unlimited"
+                                  onChange={(e) =>
+                                    setFoodPackages((prev) =>
+                                      prev.map((x, i) =>
+                                        i === idx
+                                          ? {
+                                              ...x,
+                                              stock:
+                                                e.target.value === ''
+                                                  ? undefined
+                                                  : Math.max(0, Number(e.target.value)),
+                                            }
+                                          : x,
+                                      ),
+                                    )
+                                  }
+                                  className="input mt-0.5 h-9 py-1.5 text-xs"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="mt-3 rounded-lg border border-amber-200/60 bg-amber-50/60 p-2 dark:border-amber-500/20 dark:bg-amber-500/10">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                  Included crate (optional)
+                                </span>
+                                {pkg.crate ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setFoodPackages((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx ? { ...x, crate: undefined } : x,
+                                        ),
+                                      )
+                                    }
+                                    className="text-[11px] font-semibold text-accent-500 hover:underline"
+                                  >
+                                    Remove
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setFoodPackages((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx
+                                            ? {
+                                                ...x,
+                                                crate: { name: '', quantityKg: pkg.weightKg, price: 0 },
+                                              }
+                                            : x,
+                                        ),
+                                      )
+                                    }
+                                    className="text-[11px] font-semibold text-amber-700 hover:underline dark:text-amber-300"
+                                  >
+                                    + Add crate
+                                  </button>
+                                )}
+                              </div>
+                              {pkg.crate && (
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                  <label className="text-[11px] text-slate-500">
+                                    Crate name
+                                    <input
+                                      type="text"
+                                      value={pkg.crate.name}
+                                      placeholder="Wooden crate"
+                                      onChange={(e) =>
+                                        setFoodPackages((prev) =>
+                                          prev.map((x, i) =>
+                                            i === idx && x.crate
+                                              ? { ...x, crate: { ...x.crate, name: e.target.value } }
+                                              : x,
+                                          ),
+                                        )
+                                      }
+                                      className="input mt-0.5 h-9 py-1.5 text-xs"
+                                    />
+                                  </label>
+                                  <label className="text-[11px] text-slate-500">
+                                    Crate name (Bangla)
+                                    <input
+                                      type="text"
+                                      value={pkg.crate.nameBn ?? ''}
+                                      placeholder="কাঠের কেরাত"
+                                      onChange={(e) =>
+                                        setFoodPackages((prev) =>
+                                          prev.map((x, i) =>
+                                            i === idx && x.crate
+                                              ? { ...x, crate: { ...x.crate, nameBn: e.target.value } }
+                                              : x,
+                                          ),
+                                        )
+                                      }
+                                      className="input mt-0.5 h-9 py-1.5 text-xs"
+                                    />
+                                  </label>
+                                  <label className="text-[11px] text-slate-500">
+                                    Quantity (kg)
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={0.5}
+                                      value={pkg.crate.quantityKg}
+                                      onChange={(e) =>
+                                        setFoodPackages((prev) =>
+                                          prev.map((x, i) =>
+                                            i === idx && x.crate
+                                              ? {
+                                                  ...x,
+                                                  crate: {
+                                                    ...x.crate,
+                                                    quantityKg: Math.max(0, Number(e.target.value) || 0),
+                                                  },
+                                                }
+                                              : x,
+                                          ),
+                                        )
+                                      }
+                                      className="input mt-0.5 h-9 py-1.5 text-xs"
+                                    />
+                                  </label>
+                                  <div className="flex items-end gap-2">
+                                    <label className="flex-1 text-[11px] text-slate-500">
+                                      Price (৳)
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={pkg.crate.price}
+                                        onChange={(e) =>
+                                          setFoodPackages((prev) =>
+                                            prev.map((x, i) =>
+                                              i === idx && x.crate
+                                                ? {
+                                                    ...x,
+                                                    crate: {
+                                                      ...x.crate,
+                                                      price: Math.max(0, Number(e.target.value) || 0),
+                                                    },
+                                                  }
+                                                : x,
+                                            ),
+                                          )
+                                        }
+                                        className="input mt-0.5 h-9 py-1.5 text-xs"
+                                      />
+                                    </label>
+                                    <label className="mb-1 inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                                      <input
+                                        type="checkbox"
+                                        className="h-3.5 w-3.5"
+                                        checked={pkg.crate.price === 0}
+                                        onChange={(e) =>
+                                          setFoodPackages((prev) =>
+                                            prev.map((x, i) =>
+                                              i === idx && x.crate
+                                                ? {
+                                                    ...x,
+                                                    crate: {
+                                                      ...x.crate,
+                                                      price: e.target.checked ? 0 : x.crate.price || 50,
+                                                    },
+                                                  }
+                                                : x,
+                                            ),
+                                          )
+                                        }
+                                      />
+                                      Free
+                                    </label>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

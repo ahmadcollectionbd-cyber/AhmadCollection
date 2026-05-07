@@ -59,7 +59,8 @@ export function Cart() {
               {items.map((it) => {
                 const key = cartLineKey(it);
                 const isPerKg = it.productType === 'food' && typeof it.weightKg === 'number';
-                const lineTotal = it.price * it.quantity + (it.cratePrice ?? 0);
+                const isPackage = !!it.packageId;
+                const lineTotal = it.price * it.quantity + (it.cratePrice ?? 0) * (isPackage ? it.quantity : 1);
                 return (
                   <li key={key} className="card flex gap-4 p-3">
                     <Link to={`/product/${it.slug}`} className="shrink-0">
@@ -73,20 +74,31 @@ export function Cart() {
                             {it.variantLabel}
                           </span>
                         )}
+                        {it.packageLabel && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                            {it.packageLabel}
+                            {it.packageWeightKg ? ` · ${it.packageWeightKg} kg` : ''}
+                          </span>
+                        )}
                         {it.crateLabel && (
                           <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
-                            {it.crateLabel} +{formatBDT(it.cratePrice ?? 0)}
+                            {it.crateLabel}
+                            {(it.cratePrice ?? 0) > 0
+                              ? ` +${formatBDT(it.cratePrice ?? 0)}`
+                              : ' — Free'}
                           </span>
                         )}
                       </div>
                       <div className="mt-1 text-sm font-bold text-brand-700 dark:text-brand-300">
-                        {formatBDT(it.price)}{isPerKg ? ' / kg' : ''}
+                        {formatBDT(it.price)}
+                        {isPerKg ? ' / kg' : isPackage ? ' / pack' : ''}
                       </div>
                       <div className="mt-auto flex items-center justify-between">
                         <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-white/10">
                           <button onClick={() => setQty(key, it.quantity - 1)} className="px-3 py-1.5">−</button>
                           <span className="min-w-12 text-center text-sm font-semibold">
-                            {it.quantity}{isPerKg ? ' kg' : ''}
+                            {it.quantity}
+                            {isPerKg ? ' kg' : isPackage ? ' pack' : ''}
                           </span>
                           <button onClick={() => setQty(key, it.quantity + 1)} className="px-3 py-1.5">+</button>
                         </div>

@@ -10,6 +10,7 @@ import { useDataStore } from '../stores/dataStore';
 import { useOrderStore } from '../stores/orderStore';
 import { useAuthStore } from '../stores/authStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useLangStore } from '../stores/langStore';
 import {
   computeShipping,
   findDistrict,
@@ -52,13 +53,26 @@ type CheckoutForm = z.infer<typeof checkoutSchema>;
 
 export function Checkout() {
   const { t } = useTranslation();
-  const { state } = useLocation() as { state?: { couponCode?: string; buyNowItem?: CartItem } };
+  const { state } = useLocation() as {
+    state?: {
+      couponCode?: string;
+      buyNowItem?: CartItem;
+      buyNowItems?: CartItem[];
+    };
+  };
   const cartItems = useCartStore((s) => s.items);
-  // If "Buy Now" was used, only checkout that single item; otherwise use full cart.
-  const isBuyNow = !!state?.buyNowItem;
-  const items = isBuyNow ? [state.buyNowItem!] : cartItems;
+  // If "Buy Now" was used, only checkout the staged items; otherwise use full cart.
+  const buyNowItems = state?.buyNowItems ?? (state?.buyNowItem ? [state.buyNowItem] : null);
+  const isBuyNow = !!buyNowItems && buyNowItems.length > 0;
+  const items = isBuyNow ? buyNowItems! : cartItems;
   const subtotal = isBuyNow
-    ? items.reduce((acc, it) => acc + it.price * it.quantity + (it.cratePrice ?? 0), 0)
+    ? items.reduce(
+        (acc, it) =>
+          acc +
+          it.price * it.quantity +
+          (it.cratePrice ?? 0) * (it.packageId ? it.quantity : 1),
+        0,
+      )
     : useCartStore.getState().subtotal();
   const clear = useCartStore((s) => s.clear);
   const coupons = useDataStore((s) => s.coupons);
@@ -68,6 +82,7 @@ export function Checkout() {
   const pushNotification = useDataStore((s) => s.pushNotification);
   const user = useAuthStore((s) => s.user);
   const settings = useSettingsStore((s) => s.settings);
+  const lang = useLangStore((s) => s.lang);
   const navigate = useNavigate();
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cod');
@@ -78,6 +93,11 @@ export function Checkout() {
   const [appliedCoupon, setAppliedCoupon] = useState(state?.couponCode ?? '');
   const [orderImages, setOrderImages] = useState<string[]>([]);
   const [uploadingOrderImg, setUploadingOrderImg] = useState(false);
+  // When the optional "advance delivery flow" is enabled, the customer can
+  // choose between paying the advance now (`'now'`) or asking the team to
+  // confirm and collect later (`'later'`). The deferred branch persists
+  // `advancePaymentDeferred: true` on the order so admins can call back.
+  const [advancePayChoice, setAdvancePayChoice] = useState<'now' | 'later'>('now');
 
   const coupon = appliedCoupon ? coupons.find((c) => c.code === appliedCoupon && c.active) : null;
   const discount = coupon
@@ -107,6 +127,9 @@ export function Checkout() {
   }, 0);
   const standardSubtotal = subtotal - mangoSubtotal;
   const hasMango = mangoKg > 0 && (settings.mangoDelivery?.enabled ?? false);
+  // Any food/mango line (per-kg or pre-built package). Drives food-only UI
+  // like the courier-payment-explainer image and the optional advance flow.
+  const hasFood = items.some((it) => it.productType === 'food');
 
   const watchedDivision = watch('division');
   const watchedDistrict = watch('district');
@@ -179,8 +202,13 @@ export function Checkout() {
   }, [items, products, categories]);
 
   const total = Math.max(0, subtotal - discount + shipping);
-  const codDue = Math.max(0, total - advanceCharge);
-  const advanceRequired = advanceCharge > 0;
+  // The optional advance-delivery flow lets the customer defer the upfront
+  // payment ("Pay later") in which case we treat the order as plain COD.
+  const advanceFlow = settings.advanceDeliveryFlow;
+  const advanceFlowEnabled = !!advanceFlow?.enabled && advanceCharge > 0;
+  const advanceDeferred = advanceFlowEnabled && advancePayChoice === 'later';
+  const codDue = Math.max(0, total - (advanceDeferred ? 0 : advanceCharge));
+  const advanceRequired = advanceCharge > 0 && !advanceDeferred;
 
   // Per-method on/off toggles configured in Admin → Settings → Payments.
   const enabled = useMemo(
@@ -297,6 +325,7 @@ export function Checkout() {
             advanceRef: values.paymentRef,
           }
         : {}),
+      ...(advanceDeferred ? { advancePaymentDeferred: true } : {}),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -607,9 +636,96 @@ export function Checkout() {
               )}
             </div>
 
+            {hasFood && settings.foodCheckoutImage && (
+              <div className="card overflow-hidden p-5">
+                <h2 className="font-display text-sm font-bold uppercase tracking-wider">
+                  Courier payment guide
+                </h2>
+                <p className={`mt-1 text-xs text-slate-500 ${lang === 'bn' && settings.foodCheckoutImageNoteBn ? 'font-bn' : ''}`}>
+                  {lang === 'bn' && settings.foodCheckoutImageNoteBn
+                    ? settings.foodCheckoutImageNoteBn
+                    : settings.foodCheckoutImageNote}
+                </p>
+                <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50 dark:border-white/10 dark:bg-slate-900/40">
+                  <img
+                    src={settings.foodCheckoutImage}
+                    alt="Courier payment guide"
+                    className="block h-auto w-full object-contain"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="card p-5">
               <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wider">{t('checkout.payment')}</h2>
-              {advanceRequired && (
+              {advanceCharge > 0 && advanceFlowEnabled && (
+                <div className="mb-3 space-y-3">
+                  <div className="rounded-2xl border border-amber-300/60 bg-amber-50/60 p-3 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                    <div className="font-semibold">
+                      {lang === 'bn' ? 'অগ্রিম ডেলিভারি চার্জ' : 'Advance delivery charge'}
+                    </div>
+                    <p className={`mt-0.5 ${lang === 'bn' && advanceFlow?.noticeTextBn ? 'font-bn' : ''}`}>
+                      {lang === 'bn' && advanceFlow?.noticeTextBn
+                        ? advanceFlow.noticeTextBn
+                        : advanceFlow?.noticeText}
+                    </p>
+                    <p className="mt-1.5">
+                      <span className="font-bold">{formatBDT(advanceCharge)}</span>{' '}
+                      {lang === 'bn' ? 'অগ্রিম' : 'advance'} ·{' '}
+                      <span className="font-bold">{formatBDT(Math.max(0, total - advanceCharge))}</span>{' '}
+                      {lang === 'bn' ? 'ক্যাশ অন ডেলিভারি' : 'cash on delivery'}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(['now', 'later'] as const).map((choice) => {
+                      const active = advancePayChoice === choice;
+                      return (
+                        <button
+                          key={choice}
+                          type="button"
+                          onClick={() => setAdvancePayChoice(choice)}
+                          className={`rounded-2xl border p-3 text-left transition ${
+                            active
+                              ? 'border-brand-500 bg-brand-500/5 ring-2 ring-brand-500/20'
+                              : 'border-slate-200/70 bg-white/70 dark:border-white/10 dark:bg-slate-900/60'
+                          }`}
+                        >
+                          <div className="text-sm font-bold">
+                            {choice === 'now'
+                              ? lang === 'bn'
+                                ? 'এখনই অনলাইনে পেমেন্ট'
+                                : 'Pay now online'
+                              : lang === 'bn'
+                                ? 'পরে পেমেন্ট'
+                                : 'Pay later'}
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-slate-500">
+                            {choice === 'now'
+                              ? lang === 'bn'
+                                ? 'বিকাশ / নগদ / ব্যাংকে অগ্রিম পাঠান'
+                                : 'Send the advance via bKash / Nagad / Bank'
+                              : lang === 'bn'
+                                ? 'প্রতিনিধি কল করে কনফার্ম করবেন'
+                                : 'Our representative will call to confirm'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {advancePayChoice === 'later' && (
+                    <div className="rounded-2xl border border-emerald-300/60 bg-emerald-50/60 p-3 text-xs text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                      <p className={`${lang === 'bn' && advanceFlow?.payLaterTextBn ? 'font-bn' : ''}`}>
+                        {lang === 'bn' && advanceFlow?.payLaterTextBn
+                          ? advanceFlow.payLaterTextBn
+                          : advanceFlow?.payLaterText}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {advanceRequired && !advanceFlowEnabled && (
                 <div className="mb-3 rounded-2xl border border-amber-300/60 bg-amber-50/60 p-3 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                   <div className="font-semibold">Advance delivery charge required</div>
                   <p className="mt-0.5">
@@ -781,9 +897,15 @@ export function Checkout() {
             <ul className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
               {items.map((it) => {
                 const isPerKg = it.productType === 'food' && typeof it.weightKg === 'number';
-                const lineTotal = it.price * it.quantity + (it.cratePrice ?? 0);
+                const isPackage = !!it.packageId;
+                const lineTotal =
+                  it.price * it.quantity +
+                  (it.cratePrice ?? 0) * (isPackage ? it.quantity : 1);
                 return (
-                <li key={`${it.productId}|${it.variantId ?? ''}`} className="flex items-center gap-3 text-sm">
+                <li
+                  key={`${it.productId}|${it.variantId ?? ''}|${it.packageId ?? ''}`}
+                  className="flex items-center gap-3 text-sm"
+                >
                   <SafeImage src={it.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
                     <div className="line-clamp-1 text-sm">
@@ -791,11 +913,26 @@ export function Checkout() {
                       {it.variantLabel && (
                         <span className="ml-1 text-xs text-slate-500">· {it.variantLabel}</span>
                       )}
+                      {it.packageLabel && (
+                        <span className="ml-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                          · {it.packageLabel}
+                          {it.packageWeightKg ? ` (${it.packageWeightKg} kg)` : ''}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-slate-500">
-                      {isPerKg ? `${it.quantity} kg @ ${formatBDT(it.price)}/kg` : `× ${it.quantity}`}
+                      {isPerKg
+                        ? `${it.quantity} kg @ ${formatBDT(it.price)}/kg`
+                        : isPackage
+                          ? `${it.quantity} pack × ${formatBDT(it.price)}`
+                          : `× ${it.quantity}`}
                       {it.crateLabel && (
-                        <span className="ml-1 text-amber-600 dark:text-amber-400">+ {it.crateLabel} {formatBDT(it.cratePrice ?? 0)}</span>
+                        <span className="ml-1 text-amber-600 dark:text-amber-400">
+                          + {it.crateLabel}{' '}
+                          {(it.cratePrice ?? 0) > 0
+                            ? formatBDT((it.cratePrice ?? 0) * (isPackage ? it.quantity : 1))
+                            : 'Free'}
+                        </span>
                       )}
                     </div>
                   </div>

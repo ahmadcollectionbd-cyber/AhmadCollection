@@ -281,6 +281,10 @@ export function AdminSettings() {
           }
         />
 
+        <FoodCheckoutImageSection form={form} setForm={setForm} />
+
+        <AdvanceDeliveryFlowSection form={form} setForm={setForm} />
+
         <Section
           title="Payments"
           subtitle="Toggle each payment method on/off and configure the customer-facing details."
@@ -653,6 +657,165 @@ function MangoDeliverySection({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function FoodCheckoutImageSection({
+  form,
+  setForm,
+}: {
+  form: SiteSettings;
+  setForm: React.Dispatch<React.SetStateAction<SiteSettings>>;
+}) {
+  return (
+    <div className="card relative overflow-hidden p-5 xl:col-span-2">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 via-orange-400 to-rose-500"
+      />
+      <div className="mb-3">
+        <h2 className="font-display text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
+          Food / mango checkout image
+        </h2>
+        <p className="mt-0.5 text-xs text-slate-500">
+          Shown ONLY on the checkout page when the cart contains a food / mango
+          line. Use it to explain the courier payment process visually
+          (screenshot of bKash send-money, Steadfast slip, etc.). Leave the
+          image empty to hide the section.
+        </p>
+      </div>
+      <div className="grid gap-3">
+        <div>
+          <span className="label">Image</span>
+          <div className="mt-1">
+            <ImageInput
+              value={form.foodCheckoutImage ?? ''}
+              onChange={(url) => setForm((p) => ({ ...p, foodCheckoutImage: url }))}
+              folder="settings"
+            />
+          </div>
+        </div>
+        <label className="block">
+          <span className="label">Caption (English)</span>
+          <textarea
+            className="input mt-1 min-h-[64px]"
+            value={form.foodCheckoutImageNote ?? ''}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, foodCheckoutImageNote: e.target.value }))
+            }
+            placeholder="e.g. Courier payment process — please review before placing your food / mango order."
+          />
+        </label>
+        <label className="block">
+          <span className="label">Caption (বাংলা)</span>
+          <textarea
+            className="input mt-1 min-h-[64px] font-bn"
+            value={form.foodCheckoutImageNoteBn ?? ''}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, foodCheckoutImageNoteBn: e.target.value }))
+            }
+            placeholder="যেমন: কুরিয়ার পেমেন্ট প্রক্রিয়া — খাবার / আম অর্ডার করার আগে দেখে নিন।"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+const DEFAULT_ADVANCE_FLOW = {
+  enabled: false,
+  noticeText:
+    'To confirm your order, the delivery charge must be paid in advance — the rest is cash on delivery.',
+  noticeTextBn:
+    'আপনার অর্ডার কনফার্ম করতে ডেলিভারি চার্জটি অগ্রিম পরিশোধ করতে হবে, বাকিটা ক্যাশ অন ডেলিভারি।',
+  payLaterText:
+    'To confirm your order, our representative will quickly call you to confirm. You can pay then.',
+  payLaterTextBn:
+    'অর্ডার কনফার্ম করতে আমাদের প্রতিনিধি দ্রুত আপনাকে কল করে কনফার্ম করবেন, আপনি তখন পেমেন্ট করতে পারবেন।',
+};
+
+function AdvanceDeliveryFlowSection({
+  form,
+  setForm,
+}: {
+  form: SiteSettings;
+  setForm: React.Dispatch<React.SetStateAction<SiteSettings>>;
+}) {
+  const cfg = form.advanceDeliveryFlow ?? DEFAULT_ADVANCE_FLOW;
+  function patch(p: Partial<NonNullable<SiteSettings['advanceDeliveryFlow']>>) {
+    setForm((s) => ({
+      ...s,
+      advanceDeliveryFlow: { ...DEFAULT_ADVANCE_FLOW, ...cfg, ...p },
+    }));
+  }
+  return (
+    <div className="card relative overflow-hidden p-5 xl:col-span-2">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-cyan-400 to-violet-500"
+      />
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-bold tracking-tight text-slate-800 dark:text-slate-100">
+            Advance delivery flow (Pay Now / Pay Later)
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            When enabled and the order requires an advance delivery charge,
+            the customer can pick "Pay now online" (existing payment gateway)
+            or "Pay later" (representative call back). Notes are shown to the
+            customer above each choice — fully editable below.
+          </p>
+        </div>
+        <label className="inline-flex items-center gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300"
+            checked={!!cfg.enabled}
+            onChange={(e) => patch({ enabled: e.target.checked })}
+          />
+          {cfg.enabled ? 'Enabled' : 'Disabled'}
+        </label>
+      </div>
+
+      <div className="grid gap-3">
+        <label className="block">
+          <span className="label">Advance notice (English)</span>
+          <textarea
+            className="input mt-1 min-h-[72px]"
+            value={cfg.noticeText}
+            onChange={(e) => patch({ noticeText: e.target.value })}
+            placeholder="To confirm your order, the delivery charge must be paid in advance…"
+          />
+        </label>
+        <label className="block">
+          <span className="label">Advance notice (বাংলা)</span>
+          <textarea
+            className="input mt-1 min-h-[72px] font-bn"
+            value={cfg.noticeTextBn}
+            onChange={(e) => patch({ noticeTextBn: e.target.value })}
+            placeholder="অর্ডার কনফার্ম করতে ডেলিভারি চার্জটি অগ্রিম পরিশোধ করতে হবে…"
+          />
+        </label>
+        <label className="block">
+          <span className="label">"Pay later" note (English)</span>
+          <textarea
+            className="input mt-1 min-h-[72px]"
+            value={cfg.payLaterText}
+            onChange={(e) => patch({ payLaterText: e.target.value })}
+            placeholder="To confirm your order, our representative will quickly call you to confirm…"
+          />
+        </label>
+        <label className="block">
+          <span className="label">"Pay later" note (বাংলা)</span>
+          <textarea
+            className="input mt-1 min-h-[72px] font-bn"
+            value={cfg.payLaterTextBn}
+            onChange={(e) => patch({ payLaterTextBn: e.target.value })}
+            placeholder="অর্ডার কনফার্ম করতে আমাদের প্রতিনিধি দ্রুত আপনাকে কল করে কনফার্ম করবেন…"
+          />
+        </label>
+      </div>
     </div>
   );
 }

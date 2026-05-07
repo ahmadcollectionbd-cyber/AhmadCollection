@@ -86,6 +86,22 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   seoKeywords:
     'ahmad collection, mustard oil, honey, ghee, attar, dates, bangladesh, organic, খাঁটি মধু, সরিষার তেল',
   ogImage: '/banner.png',
+  foodCheckoutImage: '',
+  foodCheckoutImageNote:
+    'Courier payment process — please review before placing your food / mango order.',
+  foodCheckoutImageNoteBn:
+    'কুরিয়ার পেমেন্ট প্রক্রিয়া — খাবার / আম অর্ডার করার আগে দেখে নিন।',
+  advanceDeliveryFlow: {
+    enabled: false,
+    noticeText:
+      'To confirm your order, the delivery charge must be paid in advance — the rest is cash on delivery.',
+    noticeTextBn:
+      'আপনার অর্ডার কনফার্ম করতে ডেলিভারি চার্জটি অগ্রিম পরিশোধ করতে হবে, বাকিটা ক্যাশ অন ডেলিভারি।',
+    payLaterText:
+      'To confirm your order, our representative will quickly call you to confirm. You can pay then.',
+    payLaterTextBn:
+      'অর্ডার কনফার্ম করতে আমাদের প্রতিনিধি দ্রুত আপনাকে কল করে কনফার্ম করবেন, আপনি তখন পেমেন্ট করতে পারবেন।',
+  },
 };
 
 const SETTINGS_PATH = ['settings', 'site'] as const;
