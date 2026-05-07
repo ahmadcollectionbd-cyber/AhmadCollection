@@ -188,13 +188,18 @@ export function Checkout() {
   const shipping = standardShipping + mangoShipping;
   const districtMatch = findDistrict(settings, watchedCity);
 
-  // When the admin enables this in Admin → Settings → Mango / per-kg
-  // delivery (Steadfast), the entire Steadfast shipping fee for the
-  // mango/food lines is collected upfront as the advance. Per-product /
-  // per-category advances on food lines are skipped to avoid charging
-  // the customer twice for the same shipment.
-  const mangoAdvanceFullShipping =
-    !!(settings.mangoDelivery?.advanceFullShipping) && hasMango;
+  // Mango / food advance comes straight from the Mango/Steadfast section:
+  // - default: the minimum-charge value for the resolved (zone, mode)
+  // - admin toggle on: the entire computed mango shipping fee
+  // In either case the per-product / per-category advanceDeliveryCharge
+  // is **skipped** for food lines so the customer is never charged
+  // twice. Non-food lines keep using the per-product advance.
+  const mangoAdvance = useMemo(() => {
+    if (!hasMango) return 0;
+    const cfg = settings.mangoDelivery ?? DEFAULT_MANGO_DELIVERY;
+    if (cfg.advanceFullShipping) return mangoShipping;
+    return cfg.minimumCharge[mangoZone][deliveryMode] ?? 0;
+  }, [hasMango, settings.mangoDelivery, mangoShipping, mangoZone, deliveryMode]);
 
   // Sum advance-delivery charges per cart line by looking up the live product
   // (so updates to the override are picked up). Per-kg lines pay one charge,
@@ -205,18 +210,16 @@ export function Checkout() {
     for (const it of items) {
       const p = products.find((x) => x.id === it.productId);
       if (!p) continue;
-      // When the admin opted into "full mango shipping = advance", food
-      // lines contribute zero per-product advance — the mangoShipping
-      // total is added once at the end.
-      if (mangoAdvanceFullShipping && it.productType === 'food') continue;
+      // Food lines have their advance taken from the Mango/Steadfast
+      // section (mangoAdvance, added once below) — skip per-product.
+      if (hasMango && it.productType === 'food') continue;
       const charge = resolveAdvanceCharge(p, categories);
       if (charge <= 0) continue;
       const isPerKg = it.productType === 'food' && typeof it.weightKg === 'number';
       total += isPerKg ? charge : charge * it.quantity;
     }
-    if (mangoAdvanceFullShipping) total += mangoShipping;
-    return total;
-  }, [items, products, categories, mangoAdvanceFullShipping, mangoShipping]);
+    return total + mangoAdvance;
+  }, [items, products, categories, hasMango, mangoAdvance]);
 
   const total = Math.max(0, subtotal - discount + shipping);
   // The optional advance-delivery flow lets the customer defer the upfront

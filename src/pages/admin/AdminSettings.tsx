@@ -604,21 +604,58 @@ function MangoDeliverySection({
         />
       </div>
 
-      <label className="mt-3 flex items-start gap-2 rounded-2xl border border-amber-300/60 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-4 w-4 rounded border-slate-300"
-          checked={cfg.advanceFullShipping ?? false}
-          onChange={(e) => onChange({ advanceFullShipping: e.target.checked })}
-        />
-        <span>
-          <b>Take full mango delivery as advance.</b> When on, the customer
-          pays the entire Steadfast shipping fee upfront via bKash / Nagad /
-          Bank before the order is confirmed; only the goods total is left
-          as cash on delivery. Replaces the per-product / per-category
-          advance for food / mango lines so it isn&apos;t charged twice.
-        </span>
-      </label>
+      <div className="mt-3 rounded-2xl border border-amber-300/60 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <div className="font-bold">Mango / food advance-delivery charge</div>
+        <p className="mt-1">
+          For food / mango lines the per-product / per-category
+          <i> advance delivery charge</i> is replaced by an amount taken
+          straight from this section, so the customer is never charged
+          twice. Pick which amount the customer pays upfront via
+          bKash / Nagad / Bank:
+        </p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <label
+            className={`flex cursor-pointer items-start gap-2 rounded-xl border p-2 ${
+              !cfg.advanceFullShipping
+                ? 'border-amber-500 bg-white/70 dark:bg-slate-900/40'
+                : 'border-amber-200/60 dark:border-amber-500/20'
+            }`}
+          >
+            <input
+              type="radio"
+              name="mango-advance-mode"
+              className="mt-0.5 h-4 w-4"
+              checked={!cfg.advanceFullShipping}
+              onChange={() => onChange({ advanceFullShipping: false })}
+            />
+            <span>
+              <b>Minimum charge only</b> (default). The minimum charge for
+              the resolved zone + Point/Home is collected as advance. The
+              rest of the per-kg shipping is paid as cash on delivery.
+            </span>
+          </label>
+          <label
+            className={`flex cursor-pointer items-start gap-2 rounded-xl border p-2 ${
+              cfg.advanceFullShipping
+                ? 'border-amber-500 bg-white/70 dark:bg-slate-900/40'
+                : 'border-amber-200/60 dark:border-amber-500/20'
+            }`}
+          >
+            <input
+              type="radio"
+              name="mango-advance-mode"
+              className="mt-0.5 h-4 w-4"
+              checked={!!cfg.advanceFullShipping}
+              onChange={() => onChange({ advanceFullShipping: true })}
+            />
+            <span>
+              <b>Full Steadfast shipping</b>. The entire mango / per-kg
+              shipping fee is collected upfront; only the goods total
+              is left as cash on delivery.
+            </span>
+          </label>
+        </div>
+      </div>
 
       {MANGO_ZONE_LABELS.map(({ id, label }) => {
         const zone = cfg.zones[id];

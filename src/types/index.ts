@@ -653,13 +653,22 @@ export interface MangoDeliveryConfig {
     upozila: { point: number; home: number };
   };
   /**
-   * When true, the full Steadfast / mango shipping fee is collected
-   * upfront as the advance-delivery payment (in addition to any
-   * non-mango product-level advance). The customer pays the mango
-   * shipping via bKash / Nagad / Bank before the order is confirmed,
-   * and only the goods total is left as cash on delivery. When false
-   * (default) only the per-product / per-category `advanceDeliveryCharge`
-   * is collected upfront — exactly the previous behaviour.
+   * Controls how much of the Steadfast / mango shipping is collected
+   * upfront as the advance-delivery payment for food / mango lines.
+   *
+   * - `false` / unset (default): the **minimum charge** for the
+   *   resolved zone + mode (`minimumCharge[zone][mode]`) is used as
+   *   the advance.
+   * - `true`: the **full** mango shipping fee (per-kg or minimum,
+   *   whichever is greater — i.e. the same number `computeMangoShipping`
+   *   returns) is used as the advance.
+   *
+   * In either case the customer pays this amount via bKash / Nagad /
+   * Bank before the order is confirmed, and the remainder (goods +
+   * any leftover shipping) is left as cash on delivery. This advance
+   * **replaces** the per-product / per-category `advanceDeliveryCharge`
+   * for food/mango lines so the customer is never charged twice.
+   * Non-food lines continue to use `advanceDeliveryCharge` as before.
    */
   advanceFullShipping?: boolean;
 }
