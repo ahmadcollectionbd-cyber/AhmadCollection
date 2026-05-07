@@ -91,8 +91,6 @@ export function Checkout() {
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('point');
   const [couponInput, setCouponInput] = useState(state?.couponCode ?? '');
   const [appliedCoupon, setAppliedCoupon] = useState(state?.couponCode ?? '');
-  const [orderImages, setOrderImages] = useState<string[]>([]);
-  const [uploadingOrderImg, setUploadingOrderImg] = useState(false);
   // When the optional "advance delivery flow" is enabled, the customer can
   // choose between paying the advance now (`'now'`) or asking the team to
   // confirm and collect later (`'later'`). The deferred branch persists
@@ -110,18 +108,24 @@ export function Checkout() {
     defaultValues: { name: user?.name || '', phone: '', address: '' },
   });
 
-  // Detect per-kg food (mango) lines and sum total kg. When the cart has any,
-  // the customer picks Steadfast point/home + 3-zone instead of the standard
-  // inside/outside split.
+  // Detect food lines (per-kg OR pre-built package) and sum total kg.
+  // When the cart has any, the customer picks Steadfast point/home +
+  // 3-zone instead of the standard inside/outside split.
   const mangoKg = items.reduce((acc, it) => {
-    if (it.productType === 'food' && typeof it.weightKg === 'number') {
-      return acc + it.weightKg;
+    if (it.productType !== 'food') return acc;
+    if (typeof it.weightKg === 'number') return acc + it.weightKg;
+    if (typeof it.packageWeightKg === 'number') {
+      return acc + it.packageWeightKg * it.quantity;
     }
     return acc;
   }, 0);
   const mangoSubtotal = items.reduce((acc, it) => {
-    if (it.productType === 'food' && typeof it.weightKg === 'number') {
+    if (it.productType !== 'food') return acc;
+    if (typeof it.weightKg === 'number') {
       return acc + it.price * it.quantity + (it.cratePrice ?? 0);
+    }
+    if (typeof it.packageWeightKg === 'number') {
+      return acc + it.price * it.quantity + (it.cratePrice ?? 0) * it.quantity;
     }
     return acc;
   }, 0);
@@ -307,7 +311,6 @@ export function Checkout() {
       discount,
       total,
       couponCode: appliedCoupon || undefined,
-      ...(orderImages.length > 0 ? { orderImages } : {}),
       paymentMethod,
       paymentRef: values.paymentRef,
       status: 'pending',
@@ -470,62 +473,6 @@ export function Checkout() {
                   <label className="label">{t('checkout.note')}</label>
                   <input className="input mt-1" placeholder="e.g. Call before delivery" {...register('note')} />
                 </div>
-              </div>
-
-              {/* Image upload below shipping address */}
-              <div className="mt-3">
-                <label className="label">ছবি সংযুক্ত করুন / Attach image (optional)</label>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {orderImages.map((url, i) => (
-                    <div key={url + i} className="group relative">
-                      <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setOrderImages((prev) => prev.filter((_, idx) => idx !== i))}
-                        className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-rose-500 p-0.5 text-white shadow group-hover:block"
-                      >
-                        <svg className="h-3 w-3" viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="2" /></svg>
-                      </button>
-                    </div>
-                  ))}
-                  <label className="flex h-16 w-16 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-xs text-slate-500 hover:border-brand-500 hover:text-brand-600 dark:border-white/10">
-                    {uploadingOrderImg ? '…' : '+ Image'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        setUploadingOrderImg(true);
-                        try {
-                          const imgbbKey = settings.imgbbApiKey;
-                          if (!imgbbKey) {
-                            toast.error('Image upload not configured');
-                            return;
-                          }
-                          const formData = new FormData();
-                          formData.append('image', file);
-                          const res = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: 'POST', body: formData });
-                          const data = await res.json();
-                          if (data.success) {
-                            setOrderImages((prev) => [...prev, data.data.url]);
-                          } else {
-                            toast.error('Upload failed');
-                          }
-                        } catch {
-                          toast.error('Upload failed');
-                        } finally {
-                          setUploadingOrderImg(false);
-                          e.target.value = '';
-                        }
-                      }}
-                    />
-                  </label>
-                </div>
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Attach any relevant images (e.g. address screenshot, product reference)
-                </p>
               </div>
 
               {standardSubtotal > 0 && (
