@@ -71,30 +71,11 @@ export function Categories() {
     );
   }
 
-  function seeAll(keySuffix: string) {
-    return (
-      <Link
-        key={`see-all-${keySuffix}`}
-        to="/shop"
-        className="group flex w-32 flex-shrink-0 flex-col items-center justify-center rounded-2xl border border-dashed border-brand-300 bg-brand-50/50 p-4 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:bg-brand-50 hover:shadow-lg dark:border-brand-400/30 dark:bg-brand-500/10 sm:w-36"
-      >
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-100 text-brand-600 transition-transform duration-300 group-hover:scale-110 dark:bg-brand-500/20 dark:text-brand-300 sm:h-20 sm:w-20">
-          <FiArrowRight className="h-6 w-6" />
-        </div>
-        <div className="mt-3 text-xs font-semibold text-brand-600 dark:text-brand-300 sm:text-sm">
-          See All
-        </div>
-      </Link>
-    );
-  }
-
   function renderTrack(keySuffix: string) {
-    return (
-      <>
-        {categories.map((c) => renderCard(c, keySuffix))}
-        {seeAll(keySuffix)}
-      </>
-    );
+    // The "See All" affordance lives in the section header (the View All
+    // pill on the right) — including a card here would make it slide along
+    // with the marquee, which the admin asked us to fix.
+    return <>{categories.map((c) => renderCard(c, keySuffix))}</>;
   }
 
   return (
