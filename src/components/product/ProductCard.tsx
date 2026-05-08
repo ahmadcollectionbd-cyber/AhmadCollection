@@ -16,16 +16,47 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
   const lang = useLangStore((s) => s.lang);
   const navigate = useNavigate();
 
+  // Food products with pre-built packages quick-add the first ("main")
+  // package by default. Listings show a price range when packages span
+  // multiple price points so customers know the spread up front.
+  const foodPackages =
+    product.type === 'food' ? product.foodPackages ?? [] : [];
+  const hasPackages = foodPackages.length > 0;
+  const mainPackage = hasPackages ? foodPackages[0] : undefined;
+
+  const packagePrices = hasPackages ? foodPackages.map((p) => p.price) : [];
+  const minPackagePrice = packagePrices.length ? Math.min(...packagePrices) : product.price;
+  const maxPackagePrice = packagePrices.length ? Math.max(...packagePrices) : product.price;
+  const showPriceRange = hasPackages && minPackagePrice !== maxPackagePrice;
+  const displayPrice = hasPackages ? minPackagePrice : product.price;
+  const displayCompare = hasPackages
+    ? mainPackage?.comparePrice
+    : product.comparePrice;
+
   const discount =
-    product.comparePrice && product.comparePrice > product.price
-      ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
+    !showPriceRange && displayCompare && displayCompare > displayPrice
+      ? Math.round(((displayCompare - displayPrice) / displayCompare) * 100)
       : 0;
 
   // Products that need extra config on the detail page (size pick, kg
   // input, crate selector) skip the quick-add and route to detail.
+  // Food products with packages stay on the listing — quick-add /
+  // Buy Now uses the main package transparently.
   const needsConfig =
     (product.variants && product.variants.length > 0) ||
     !!product.pricedPerKg;
+
+  const outOfStock = hasPackages
+    ? (mainPackage?.stock ?? Number.MAX_SAFE_INTEGER) <= 0
+    : product.stock <= 0;
+
+  const quickAdd = () => {
+    if (mainPackage) {
+      add(product, 1, { pkg: mainPackage });
+    } else {
+      add(product, 1);
+    }
+  };
 
   return (
     <motion.div
@@ -84,22 +115,26 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
             {lang === 'bn' && product.nameBn ? product.nameBn : product.name}
           </h3>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-base font-bold text-brand-600 dark:text-brand-300 sm:text-lg">{formatBDT(product.price)}</span>
-            {product.comparePrice && product.comparePrice > product.price && (
-              <span className="text-[10px] text-slate-400 line-through sm:text-xs">{formatBDT(product.comparePrice)}</span>
+            <span className="text-base font-bold text-brand-600 dark:text-brand-300 sm:text-lg">
+              {showPriceRange
+                ? `${formatBDT(minPackagePrice)} – ${formatBDT(maxPackagePrice)}`
+                : formatBDT(displayPrice)}
+            </span>
+            {!showPriceRange && displayCompare && displayCompare > displayPrice && (
+              <span className="text-[10px] text-slate-400 line-through sm:text-xs">{formatBDT(displayCompare)}</span>
             )}
           </div>
         </Link>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
-            disabled={product.stock <= 0}
+            disabled={outOfStock}
             onClick={() => {
               if (needsConfig) {
                 navigate(`/product/${product.slug}`);
                 return;
               }
-              add(product, 1);
+              quickAdd();
               toast.success('Added to cart');
             }}
             className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-2.5 text-[10px] font-semibold text-slate-700 transition-all hover:border-brand-500 hover:text-brand-600 hover:shadow-sm disabled:opacity-50 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-brand-400 sm:text-xs"
@@ -109,13 +144,13 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
           </button>
           <button
             type="button"
-            disabled={product.stock <= 0}
+            disabled={outOfStock}
             onClick={() => {
               if (needsConfig) {
                 navigate(`/product/${product.slug}`);
                 return;
               }
-              add(product, 1);
+              quickAdd();
               navigate('/checkout');
             }}
             className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 py-2.5 text-[10px] font-semibold text-white shadow-sm transition-all hover:shadow-md hover:shadow-brand-500/25 disabled:opacity-50 sm:text-xs"

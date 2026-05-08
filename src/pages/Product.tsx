@@ -52,13 +52,28 @@ export function Product() {
     : undefined;
   const isPerKg = !!product?.pricedPerKg;
   const minKg = product?.minOrderKg ?? 1;
-  const qty = qtyOverride ?? (isPerKg ? minKg : 1);
-  const setQty = setQtyOverride;
   const crateOptions = product?.crateOptions ?? [];
   const foodPackages = product?.foodPackages ?? [];
   const hasPackages = foodPackages.length > 0;
-  /** Per-package quantity entered by the customer (default 0). */
-  const [packageQty, setPackageQty] = useState<Record<string, number>>({});
+  // When a product has pre-built food packages, qty represents the
+  // number of packages and defaults to 1 — the per-kg minimum doesn't
+  // apply. Otherwise per-kg minOrderKg seeds the kg input, and unit
+  // products start at 1.
+  const qty = qtyOverride ?? (hasPackages ? 1 : isPerKg ? minKg : 1);
+  const setQty = setQtyOverride;
+  /**
+   * The customer's explicit package pick (single-select). When this is
+   * `undefined` — or no longer matches a package on the current product
+   * — `selectedPackageId` (derived below) falls back to the first
+   * package, which is treated as the "main" package and is selected by
+   * default. Quick-add from home/shop also uses the main package.
+   */
+  const [pickedPackageId, setPickedPackageId] = useState<string | undefined>(undefined);
+  const selectedPackageId = hasPackages
+    ? pickedPackageId && foodPackages.some((p) => p.id === pickedPackageId)
+      ? pickedPackageId
+      : foodPackages[0].id
+    : undefined;
 
   // Auto-pick the best matching crate for per-kg food products. The user
   // can still override via `setCrateId` — `effectiveCrateId` (below) treats
@@ -82,31 +97,31 @@ export function Product() {
     );
   }
 
-  const effectivePrice = isPerKg
-    ? effectivePricePerKg(product, qty)
-    : (selectedVariant?.price ?? product.price);
-  const effectiveCompare = selectedVariant?.comparePrice ?? product.comparePrice;
-  const effectiveStock = hasVariants
-    ? selectedVariant?.stock ?? 0
-    : product.stock;
+  const selectedPackage = hasPackages
+    ? foodPackages.find((p) => p.id === selectedPackageId) ?? foodPackages[0]
+    : undefined;
+
+  const effectivePrice = hasPackages && selectedPackage
+    ? selectedPackage.price
+    : isPerKg
+      ? effectivePricePerKg(product, qty)
+      : (selectedVariant?.price ?? product.price);
+  const effectiveCompare = hasPackages && selectedPackage
+    ? selectedPackage.comparePrice
+    : selectedVariant?.comparePrice ?? product.comparePrice;
+  const effectiveStock = hasPackages && selectedPackage
+    ? selectedPackage.stock ?? Number.MAX_SAFE_INTEGER
+    : hasVariants
+      ? selectedVariant?.stock ?? 0
+      : product.stock;
   const requiresVariantPick = hasVariants && !selectedVariant;
 
   const selectedCrate = crateOptions.find((c) => c.id === effectiveCrateId);
-  const packagesSubtotal = hasPackages
-    ? foodPackages.reduce((acc, pkg) => {
-        const n = packageQty[pkg.id] ?? 0;
-        if (n <= 0) return acc;
-        return acc + (pkg.price + (pkg.crate?.price ?? 0)) * n;
-      }, 0)
-    : 0;
-  const totalPackagesPicked = hasPackages
-    ? foodPackages.reduce((acc, pkg) => acc + (packageQty[pkg.id] ?? 0), 0)
-    : 0;
-  const lineSubtotal = hasPackages
-    ? packagesSubtotal
+  const lineSubtotal = hasPackages && selectedPackage
+    ? (selectedPackage.price + (selectedPackage.crate?.price ?? 0)) * qty
     : isPerKg
-    ? effectivePrice * qty + (selectedCrate?.price ?? 0)
-    : effectivePrice * qty;
+      ? effectivePrice * qty + (selectedCrate?.price ?? 0)
+      : effectivePrice * qty;
 
   const productReviews = reviews.filter((r) => r.productId === product.id);
   const related = products.filter((p) => p.id !== product.id && p.categoryIds.some((c) => product.categoryIds.includes(c))).slice(0, 4);
@@ -203,19 +218,24 @@ export function Product() {
             <div className="mt-5 flex items-baseline gap-3">
               <span className="text-3xl font-extrabold text-brand-700 dark:text-brand-300">
                 {formatBDT(effectivePrice)}
-                {isPerKg && <span className="ml-1 text-base font-bold text-slate-500">/ kg</span>}
+                {isPerKg && !hasPackages && <span className="ml-1 text-base font-bold text-slate-500">/ kg</span>}
               </span>
               {effectiveCompare && effectiveCompare > effectivePrice && (
                 <span className="text-base text-slate-400 line-through">{formatBDT(effectiveCompare)}</span>
               )}
-              {isPerKg && qty > 0 && (
+              {isPerKg && !hasPackages && qty > 0 && (
                 <span className="ml-auto text-xs text-slate-500">
                   {qty} kg = <strong className="text-slate-700 dark:text-slate-200">{formatBDT(effectivePrice * qty)}</strong>
                 </span>
               )}
+              {hasPackages && qty > 0 && (
+                <span className="ml-auto text-xs text-slate-500">
+                  {qty} × = <strong className="text-slate-700 dark:text-slate-200">{formatBDT(lineSubtotal)}</strong>
+                </span>
+              )}
             </div>
 
-            {isPerKg && (product.weightTiers?.length ?? 0) > 0 && (
+            {isPerKg && !hasPackages && (product.weightTiers?.length ?? 0) > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {product.weightTiers!
                   .slice()
@@ -282,23 +302,43 @@ export function Product() {
               <div className="mt-5 rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/5">
                 <span className="label">প্যাকেজ / Package</span>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  Pick any number of packages and set the quantity for each.
+                  Pick a package, then choose the quantity below. The first
+                  package is selected by default.
                 </p>
-                <div className="mt-3 grid gap-2.5">
+                <div className="mt-3 grid gap-2.5" role="radiogroup" aria-label="Package">
                   {foodPackages.map((pkg) => {
-                    const n = packageQty[pkg.id] ?? 0;
-                    const max = pkg.stock ?? Number.MAX_SAFE_INTEGER;
-                    const lineTotal = (pkg.price + (pkg.crate?.price ?? 0)) * n;
+                    const active = pkg.id === selectedPackageId;
+                    const out = typeof pkg.stock === 'number' && pkg.stock <= 0;
                     return (
-                      <div
+                      <button
                         key={pkg.id}
-                        className={`rounded-xl border p-3 transition ${
-                          n > 0
-                            ? 'border-emerald-500/60 bg-white/90 ring-1 ring-emerald-500/30 dark:bg-slate-900/60'
-                            : 'border-slate-200 bg-white/70 dark:border-white/10 dark:bg-slate-900/40'
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        disabled={out}
+                        onClick={() => {
+                          setPickedPackageId(pkg.id);
+                          setQty(1);
+                        }}
+                        className={`text-left rounded-xl border p-3 transition ${
+                          active
+                            ? 'border-emerald-500 bg-white/90 ring-1 ring-emerald-500/30 dark:bg-slate-900/60'
+                            : out
+                              ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 line-through dark:border-white/10 dark:bg-slate-800 dark:text-slate-500'
+                              : 'border-slate-200 bg-white/70 hover:border-emerald-400 dark:border-white/10 dark:bg-slate-900/40'
                         }`}
                       >
                         <div className="flex items-start gap-3">
+                          <span
+                            aria-hidden="true"
+                            className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                              active
+                                ? 'border-emerald-500'
+                                : 'border-slate-300 dark:border-white/30'
+                            }`}
+                          >
+                            {active && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
+                          </span>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-baseline gap-1.5">
                               <span className={`font-semibold ${lang === 'bn' && pkg.nameBn ? 'font-bn' : ''}`}>
@@ -333,96 +373,53 @@ export function Product() {
                               </div>
                             )}
                           </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1.5">
-                            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white/90 dark:border-white/10 dark:bg-slate-900/60">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPackageQty((prev) => ({
-                                    ...prev,
-                                    [pkg.id]: Math.max(0, (prev[pkg.id] ?? 0) - 1),
-                                  }))
-                                }
-                                className="px-2.5 py-1 text-base leading-none disabled:opacity-40"
-                                disabled={n <= 0}
-                                aria-label="Decrease"
-                              >
-                                −
-                              </button>
-                              <span className="min-w-7 text-center text-sm font-semibold">{n}</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPackageQty((prev) => ({
-                                    ...prev,
-                                    [pkg.id]: Math.min(max, (prev[pkg.id] ?? 0) + 1),
-                                  }))
-                                }
-                                className="px-2.5 py-1 text-base leading-none disabled:opacity-40"
-                                disabled={
-                                  (typeof pkg.stock === 'number' && pkg.stock <= 0) ||
-                                  n >= max
-                                }
-                                aria-label="Increase"
-                              >
-                                +
-                              </button>
-                            </div>
-                            {n > 0 && (
-                              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                                = {formatBDT(lineTotal)}
-                              </span>
-                            )}
-                          </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               </div>
             )}
 
-            {!hasPackages && (
-              <div className="mt-6 flex items-center gap-2">
-                <span className="label">{isPerKg ? 'Weight (kg)' : 'Quantity'}</span>
-                <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-slate-900/60">
-                  <button
-                    onClick={() => setQty(Math.max(isPerKg ? minKg : 1, qty - (isPerKg ? 1 : 1)))}
-                    className="px-3 py-2 text-lg leading-none"
-                  >
-                    −
-                  </button>
-                  {isPerKg ? (
-                    <input
-                      type="number"
-                      min={minKg}
-                      max={effectiveStock || undefined}
-                      step={1}
-                      value={qty}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        if (Number.isFinite(v)) setQty(Math.max(minKg, Math.min(effectiveStock || v, v)));
-                      }}
-                      className="w-16 bg-transparent text-center text-sm font-semibold outline-none"
-                    />
-                  ) : (
-                    <span className="min-w-8 text-center text-sm font-semibold">{qty}</span>
-                  )}
-                  <button
-                    onClick={() => setQty(Math.min(effectiveStock, qty + 1))}
-                    className="px-3 py-2 text-lg leading-none"
-                  >
-                    +
-                  </button>
-                </div>
-                {isPerKg && minKg > 1 && (
-                  <span className="text-[11px] text-slate-500">min {minKg} kg</span>
+            <div className="mt-6 flex items-center gap-2">
+              <span className="label">{isPerKg && !hasPackages ? 'Weight (kg)' : 'Quantity'}</span>
+              <div className="inline-flex items-center rounded-xl border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-slate-900/60">
+                <button
+                  onClick={() => setQty(Math.max(isPerKg && !hasPackages ? minKg : 1, qty - 1))}
+                  className="px-3 py-2 text-lg leading-none"
+                >
+                  −
+                </button>
+                {isPerKg && !hasPackages ? (
+                  <input
+                    type="number"
+                    min={minKg}
+                    max={effectiveStock || undefined}
+                    step={1}
+                    value={qty}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (Number.isFinite(v)) setQty(Math.max(minKg, Math.min(effectiveStock || v, v)));
+                    }}
+                    className="w-16 bg-transparent text-center text-sm font-semibold outline-none"
+                  />
+                ) : (
+                  <span className="min-w-8 text-center text-sm font-semibold">{qty}</span>
                 )}
-                {(selectedVariant?.sku || product.sku) && (
-                  <span className="ml-auto text-xs text-slate-500">SKU: {selectedVariant?.sku ?? product.sku}</span>
-                )}
+                <button
+                  onClick={() => setQty(Math.min(effectiveStock, qty + 1))}
+                  className="px-3 py-2 text-lg leading-none"
+                >
+                  +
+                </button>
               </div>
-            )}
+              {isPerKg && !hasPackages && minKg > 1 && (
+                <span className="text-[11px] text-slate-500">min {minKg} kg</span>
+              )}
+              {!hasPackages && (selectedVariant?.sku || product.sku) && (
+                <span className="ml-auto text-xs text-slate-500">SKU: {selectedVariant?.sku ?? product.sku}</span>
+              )}
+            </div>
 
             {!hasPackages && crateOptions.length > 0 && (
               <div className="mt-5 rounded-2xl border border-amber-200/60 bg-amber-50/40 p-3 dark:border-amber-500/20 dark:bg-amber-500/5">
@@ -471,38 +468,29 @@ export function Product() {
 
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               <button
-                disabled={
-                  hasPackages
-                    ? totalPackagesPicked <= 0
-                    : effectiveStock <= 0 || requiresVariantPick
-                }
+                disabled={effectiveStock <= 0 || requiresVariantPick}
                 onClick={() => {
-                  if (hasPackages) {
-                    if (totalPackagesPicked <= 0) {
-                      toast.error('Pick at least one package');
-                      return;
-                    }
-                    let added = 0;
-                    for (const pkg of foodPackages) {
-                      const n = packageQty[pkg.id] ?? 0;
-                      if (n <= 0) continue;
-                      add(product, n, { pkg });
-                      added += n;
-                    }
+                  if (hasPackages && selectedPackage) {
+                    add(product, qty, { pkg: selectedPackage });
                     pixelEvent('AddToCart', {
                       content_ids: [product.id],
                       content_name: product.name,
                       content_type: 'product',
                       currency: 'BDT',
-                      value: packagesSubtotal,
+                      value: lineSubtotal,
                     });
                     gaEvent('add_to_cart', {
                       currency: 'BDT',
-                      value: packagesSubtotal,
-                      items: [{ item_id: product.id, item_name: product.name, quantity: added }],
+                      value: lineSubtotal,
+                      items: [{
+                        item_id: product.id,
+                        item_name: product.name,
+                        item_variant: selectedPackage.name,
+                        price: selectedPackage.price,
+                        quantity: qty,
+                      }],
                     });
-                    setPackageQty({});
-                    toast.success(`Added ${added} package${added === 1 ? '' : 's'} to cart`);
+                    toast.success('Added to cart');
                     return;
                   }
                   if (requiresVariantPick) {
@@ -536,48 +524,35 @@ export function Product() {
                 {t('product.addToCart')}
               </button>
               <button
-                disabled={
-                  hasPackages
-                    ? totalPackagesPicked <= 0
-                    : effectiveStock <= 0 || requiresVariantPick
-                }
+                disabled={effectiveStock <= 0 || requiresVariantPick}
                 onClick={() => {
-                  if (hasPackages) {
-                    if (totalPackagesPicked <= 0) {
-                      toast.error('Pick at least one package');
-                      return;
-                    }
-                    // Buy Now with packages: stage selected packages and navigate.
-                    const buyNowItems = foodPackages
-                      .filter((pkg) => (packageQty[pkg.id] ?? 0) > 0)
-                      .map((pkg) => {
-                        const n = packageQty[pkg.id] ?? 0;
-                        return {
-                          productId: product.id,
-                          name: product.name,
-                          price: pkg.price,
-                          image: product.images[0],
-                          quantity: n,
-                          stock: pkg.stock ?? product.stock,
-                          slug: product.slug,
-                          productType: product.type,
-                          packageId: pkg.id,
-                          packageLabel: pkg.name,
-                          packageWeightKg: pkg.weightKg,
-                          crateId: pkg.crate ? `pkg-${pkg.id}-crate` : undefined,
-                          crateLabel: pkg.crate
-                            ? `${pkg.crate.name}${pkg.crate.quantityKg ? ` · ${pkg.crate.quantityKg} kg` : ''}`
-                            : undefined,
-                          cratePrice: pkg.crate ? pkg.crate.price : undefined,
-                        };
-                      });
+                  if (hasPackages && selectedPackage) {
+                    const pkg = selectedPackage;
+                    const buyNowItem = {
+                      productId: product.id,
+                      name: product.name,
+                      price: pkg.price,
+                      image: product.images[0],
+                      quantity: qty,
+                      stock: pkg.stock ?? product.stock,
+                      slug: product.slug,
+                      productType: product.type,
+                      packageId: pkg.id,
+                      packageLabel: pkg.name,
+                      packageWeightKg: pkg.weightKg,
+                      crateId: pkg.crate ? `pkg-${pkg.id}-crate` : undefined,
+                      crateLabel: pkg.crate
+                        ? `${pkg.crate.name}${pkg.crate.quantityKg ? ` · ${pkg.crate.quantityKg} kg` : ''}`
+                        : undefined,
+                      cratePrice: pkg.crate ? pkg.crate.price : undefined,
+                    };
                     pixelEvent('AddToCart', {
                       content_ids: [product.id],
                       content_name: product.name,
                       currency: 'BDT',
-                      value: packagesSubtotal,
+                      value: lineSubtotal,
                     });
-                    navigate('/checkout', { state: { buyNowItems } });
+                    navigate('/checkout', { state: { buyNowItem } });
                     return;
                   }
                   if (requiresVariantPick) {
