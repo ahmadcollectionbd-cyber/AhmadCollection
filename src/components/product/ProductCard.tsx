@@ -38,12 +38,14 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
       ? Math.round(((displayCompare - displayPrice) / displayCompare) * 100)
       : 0;
 
-  // Products that need extra config on the detail page (size pick, kg
-  // input, crate selector) skip the quick-add and route to detail.
-  // Food products with packages stay on the listing — quick-add /
-  // Buy Now uses the main package transparently.
+  // Products that need extra config on the detail page (size pick,
+  // colour pick, kg input, crate selector) skip the quick-add and route
+  // to detail so the customer can choose. Food products with packages
+  // stay on the listing — quick-add / Buy Now uses the main package
+  // transparently. Clothing colours always require a pick.
   const needsConfig =
     (product.variants && product.variants.length > 0) ||
+    (product.colors && product.colors.length > 0) ||
     !!product.pricedPerKg;
 
   const outOfStock = hasPackages

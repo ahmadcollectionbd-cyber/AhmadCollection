@@ -114,6 +114,33 @@ export interface Review {
 }
 
 /**
+ * A single selectable colour for a `clothing` product. Colour is picked
+ * independently of size — the customer chooses a colour AND a size, and
+ * the cart keeps separate lines per (colour, size) combination. When a
+ * colour has its own `image`, the storefront swaps the product hero to
+ * that image while the colour is selected.
+ */
+export interface ProductColor {
+  /** Stable id, e.g. `clr-red`. Unique per product. */
+  id: string;
+  /** Display name shown on the swatch / cart line, e.g. "Red". */
+  name: string;
+  /** Bengali display name (optional). */
+  nameBn?: string;
+  /**
+   * Optional CSS colour string used to render a coloured swatch chip
+   * (e.g. `#dc2626`, `red`). When empty the swatch falls back to a
+   * neutral chip with the colour name.
+   */
+  swatch?: string;
+  /**
+   * Per-colour photo URL. Shown as the product hero image when this
+   * colour is selected, and used as the cart line thumbnail.
+   */
+  image?: string;
+}
+
+/**
  * A single configurable variant of a product (size for clothing, weight
  * pack for food). Sized variants share the parent product's images by
  * default; setting `image` here lets the admin swap to a swatch / pack
@@ -142,7 +169,10 @@ export interface ProductVariant {
     size?: string;
     /** Weight in kilograms (used for food packs, e.g. 0.5, 1, 5). */
     weightKg?: number;
-    /** Color name (reserved for future use; size-only is shipped first). */
+    /** Colour id (matches a `Product.colors[].id`) — set when a clothing
+     *  variant is colour-specific. Most clothing products keep size and
+     *  colour orthogonal (size variants × `Product.colors`); this is
+     *  reserved for the rare case where stock is tracked per (colour, size). */
     color?: string;
   };
 }
@@ -256,6 +286,13 @@ export interface Product {
    */
   variants?: ProductVariant[];
   /**
+   * `clothing` only — selectable colours with optional per-colour photo.
+   * When present, the customer must pick a colour in addition to the
+   * size (if any). The selected colour's image becomes the hero photo
+   * and travels with the cart line so the order summary stays visual.
+   */
+  colors?: ProductColor[];
+  /**
    * `food` only — when true, the product is sold by weight (kg) and the
    * customer enters a kg quantity at checkout. `price` becomes price per
    * 1 kg and `variants` is ignored. Default: false.
@@ -309,6 +346,12 @@ export interface CartItem {
   variantLabel?: string;
   /** Per-kg lines only — total kg ordered (== quantity for these lines). */
   weightKg?: number;
+  /** Selected colour id (clothing). */
+  colorId?: string;
+  /** Display label of the chosen colour ('Red'). */
+  colorLabel?: string;
+  /** Per-colour image URL — overrides `image` for the cart thumbnail. */
+  colorImage?: string;
   /** Selected crate option id (mango). */
   crateId?: string;
   /** Display label of the chosen crate. */

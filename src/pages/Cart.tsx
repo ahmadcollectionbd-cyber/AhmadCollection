@@ -64,11 +64,21 @@ export function Cart() {
                 return (
                   <li key={key} className="card flex gap-4 p-3">
                     <Link to={`/product/${it.slug}`} className="shrink-0">
-                      <SafeImage src={it.image} alt={it.name} className="h-24 w-24 rounded-xl object-cover" />
+                      <SafeImage
+                        src={it.colorImage || it.image}
+                        alt={it.name}
+                        className="h-24 w-24 rounded-xl object-cover"
+                      />
                     </Link>
                     <div className="flex flex-1 flex-col">
                       <Link to={`/product/${it.slug}`} className="line-clamp-2 text-sm font-semibold hover:text-brand-600">{it.name}</Link>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        {it.colorLabel && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-100 px-2 py-0.5 text-[11px] font-semibold text-fuchsia-800 dark:bg-fuchsia-500/15 dark:text-fuchsia-200">
+                            <span className="text-[10px] uppercase opacity-70">Colour:</span>
+                            {it.colorLabel}
+                          </span>
+                        )}
                         {it.variantLabel && (
                           <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                             {it.variantLabel}

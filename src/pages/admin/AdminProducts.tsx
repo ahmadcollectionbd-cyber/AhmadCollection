@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
-import type { FoodPackage, Product, ProductType, ProductVariant } from '../../types';
+import type { FoodPackage, Product, ProductColor, ProductType, ProductVariant } from '../../types';
 import { formatBDT, slugify } from '../../lib/utils';
 import { uploadProductImage } from '../../lib/upload';
 import { PageHeader } from '../../components/admin/PageHeader';
@@ -47,6 +47,8 @@ export function AdminProducts() {
   const [uploading, setUploading] = useState(false);
   const [productType, setProductType] = useState<ProductType>('standard');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [colors, setColors] = useState<ProductColor[]>([]);
+  const [colorUploadingId, setColorUploadingId] = useState<string | null>(null);
   const [foodPackages, setFoodPackages] = useState<FoodPackage[]>([]);
   const [advanceCharge, setAdvanceCharge] = useState<string>('');
   const [specifications, setSpecifications] = useState<{ key: string; value: string }[]>([]);
@@ -62,6 +64,7 @@ export function AdminProducts() {
     setImages([]);
     setProductType('standard');
     setVariants([]);
+    setColors([]);
     setFoodPackages([]);
     setAdvanceCharge('');
     setSpecifications([]);
@@ -84,6 +87,7 @@ export function AdminProducts() {
     setImages(p.images);
     setProductType(p.type ?? 'standard');
     setVariants(p.variants ?? []);
+    setColors(p.colors ?? []);
     setFoodPackages(p.foodPackages ?? []);
     setAdvanceCharge(
       typeof p.advanceDeliveryCharge === 'number' ? String(p.advanceDeliveryCharge) : '',
@@ -120,6 +124,36 @@ export function AdminProducts() {
     setVariants((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
   }
 
+  function addColor() {
+    setColors((prev) => [
+      ...prev,
+      { id: `clr-${Date.now()}-${prev.length}`, name: '', swatch: '', image: '' },
+    ]);
+  }
+
+  function updateColor(id: string, patch: Partial<ProductColor>) {
+    setColors((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  }
+
+  function removeColor(id: string) {
+    setColors((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  async function handleColorImage(id: string, files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    setColorUploadingId(id);
+    try {
+      const url = await uploadProductImage(file);
+      updateColor(id, { image: url });
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setColorUploadingId(null);
+    }
+  }
+
   async function handleFiles(files: FileList | null) {
     if (!files || !files.length) return;
     setUploading(true);
@@ -146,6 +180,18 @@ export function AdminProducts() {
     }
     const finalVariants =
       values.type === 'clothing' && variants.length > 0 ? variants : undefined;
+    const finalColors =
+      values.type === 'clothing' && colors.length > 0
+        ? colors
+            .filter((c) => c.name.trim().length > 0)
+            .map((c) => {
+              const out: ProductColor = { id: c.id, name: c.name.trim() };
+              if (c.nameBn?.trim()) out.nameBn = c.nameBn.trim();
+              if (c.swatch?.trim()) out.swatch = c.swatch.trim();
+              if (c.image?.trim()) out.image = c.image.trim();
+              return out;
+            })
+        : undefined;
     const isFood = values.type === 'food';
     const finalPackages =
       isFood && foodPackages.length > 0
@@ -221,6 +267,7 @@ export function AdminProducts() {
         images,
         type: values.type,
         variants: finalVariants,
+        colors: finalColors,
         foodPackages: finalPackages,
         advanceDeliveryCharge: finalAdvance,
         featured: values.featured,
@@ -246,6 +293,7 @@ export function AdminProducts() {
         specifications: finalSpecs,
         type: values.type,
         variants: finalVariants,
+        colors: finalColors,
         foodPackages: finalPackages,
         advanceDeliveryCharge: finalAdvance,
         featured: values.featured,
@@ -427,7 +475,10 @@ export function AdminProducts() {
                     onChange: (e) => {
                       const v = e.target.value as ProductType;
                       setProductType(v);
-                      if (v !== 'clothing') setVariants([]);
+                      if (v !== 'clothing') {
+                        setVariants([]);
+                        setColors([]);
+                      }
                       if (v === 'food') {
                         // Food prices come from packages — clear the
                         // legacy base price / stock so the hidden fields
@@ -528,6 +579,141 @@ export function AdminProducts() {
                       <p className="text-[11px] text-slate-500">
                         Empty price falls back to the product&apos;s base price. Total
                         across sizes is used as the product stock.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {productType === 'clothing' && (
+                <div className="rounded-2xl border border-fuchsia-200/60 bg-fuchsia-50/40 p-3 dark:border-fuchsia-500/20 dark:bg-fuchsia-500/5">
+                  <div className="flex items-center justify-between">
+                    <span className="label">Colour variants (optional)</span>
+                    <button
+                      type="button"
+                      onClick={addColor}
+                      className="text-[11px] font-semibold text-fuchsia-600 hover:underline dark:text-fuchsia-300"
+                    >
+                      + Add colour
+                    </button>
+                  </div>
+                  {colors.length === 0 ? (
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      Add the colours this product comes in. Customer picks
+                      a colour <em>and</em> a size; the picked colour&apos;s
+                      photo becomes the product hero image.
+                    </p>
+                  ) : (
+                    <div className="mt-2 grid gap-3">
+                      {colors.map((c, idx) => (
+                        <div
+                          key={c.id}
+                          className="rounded-xl border border-fuchsia-300/60 bg-white/60 p-3 dark:border-fuchsia-500/20 dark:bg-slate-900/40"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-fuchsia-700 dark:text-fuchsia-300">
+                              Colour #{idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeColor(c.id)}
+                              className="rounded-md p-1 text-accent-500 hover:bg-accent-500/10"
+                              aria-label={`Remove colour ${c.name || idx + 1}`}
+                            >
+                              <FiX className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            <label className="text-[11px] text-slate-500">
+                              Name
+                              <input
+                                type="text"
+                                value={c.name}
+                                placeholder="Red"
+                                onChange={(e) => updateColor(c.id, { name: e.target.value })}
+                                className="input mt-0.5 h-9 py-1.5 text-xs"
+                              />
+                            </label>
+                            <label className="text-[11px] text-slate-500">
+                              Name (Bangla, optional)
+                              <input
+                                type="text"
+                                value={c.nameBn ?? ''}
+                                placeholder="লাল"
+                                onChange={(e) => updateColor(c.id, { nameBn: e.target.value })}
+                                className="input mt-0.5 h-9 py-1.5 text-xs"
+                              />
+                            </label>
+                            <label className="text-[11px] text-slate-500">
+                              Swatch (CSS colour, optional)
+                              <div className="mt-0.5 flex items-center gap-1.5">
+                                <input
+                                  type="color"
+                                  value={
+                                    c.swatch && /^#[0-9a-fA-F]{6}$/.test(c.swatch)
+                                      ? c.swatch
+                                      : '#000000'
+                                  }
+                                  onChange={(e) => updateColor(c.id, { swatch: e.target.value })}
+                                  className="h-9 w-12 cursor-pointer rounded-md border border-slate-200 bg-white p-0.5 dark:border-white/10"
+                                  aria-label="Swatch colour picker"
+                                />
+                                <input
+                                  type="text"
+                                  value={c.swatch ?? ''}
+                                  placeholder="#dc2626"
+                                  onChange={(e) => updateColor(c.id, { swatch: e.target.value })}
+                                  className="input h-9 py-1.5 text-xs"
+                                />
+                              </div>
+                            </label>
+                            <div className="text-[11px] text-slate-500">
+                              Image
+                              <div className="mt-0.5 flex items-center gap-2">
+                                {c.image ? (
+                                  <img
+                                    src={c.image}
+                                    alt=""
+                                    className="h-9 w-9 rounded-md object-cover"
+                                  />
+                                ) : (
+                                  <div className="h-9 w-9 rounded-md border border-dashed border-slate-300 dark:border-white/10" />
+                                )}
+                                <label className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold hover:border-fuchsia-400 dark:border-white/10 dark:bg-slate-900/60">
+                                  <FiUpload className="h-3.5 w-3.5" />
+                                  {colorUploadingId === c.id
+                                    ? '…'
+                                    : c.image
+                                      ? 'Replace'
+                                      : 'Upload'}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      handleColorImage(c.id, e.target.files);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                                {c.image && (
+                                  <button
+                                    type="button"
+                                    onClick={() => updateColor(c.id, { image: '' })}
+                                    className="text-[11px] font-semibold text-accent-500 hover:underline"
+                                  >
+                                    Clear
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-[11px] text-slate-500">
+                        Customers pick a colour and a size separately — each
+                        combination becomes its own cart line. Swatch and
+                        photo are optional but improve the buying experience.
                       </p>
                     </div>
                   )}

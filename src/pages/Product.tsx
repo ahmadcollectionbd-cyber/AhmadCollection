@@ -38,6 +38,10 @@ export function Product() {
   const [qtyOverride, setQtyOverride] = useState<number | null>(null);
   const [variantId, setVariantId] = useState<string | undefined>(undefined);
   const [crateId, setCrateId] = useState<string | undefined>(undefined);
+  // `pickedColorId` mirrors the package picker pattern — when undefined or
+  // stale, the storefront falls back to the first colour so the page is
+  // never "unconfigured". The customer can switch at any time.
+  const [pickedColorId, setPickedColorId] = useState<string | undefined>(undefined);
   const [tab, setTab] = useState<'description' | 'specifications' | 'reviews'>('description');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -49,6 +53,16 @@ export function Product() {
   const hasVariants = variants.length > 0;
   const selectedVariant = hasVariants
     ? variants.find((v) => v.id === variantId)
+    : undefined;
+  const colors = product?.colors ?? [];
+  const hasColors = colors.length > 0;
+  const selectedColorId = hasColors
+    ? pickedColorId && colors.some((c) => c.id === pickedColorId)
+      ? pickedColorId
+      : colors[0].id
+    : undefined;
+  const selectedColor = hasColors
+    ? colors.find((c) => c.id === selectedColorId) ?? colors[0]
     : undefined;
   const isPerKg = !!product?.pricedPerKg;
   const minKg = product?.minOrderKg ?? 1;
@@ -123,6 +137,11 @@ export function Product() {
       ? effectivePrice * qty + (selectedCrate?.price ?? 0)
       : effectivePrice * qty;
 
+  // When a colour with its own image is selected, the storefront uses
+  // that as the hero photo so the customer always sees what they’re
+  // about to buy. Falls back to the gallery image otherwise.
+  const heroImage = selectedColor?.image || product.images[imageIdx] || product.images[0];
+
   const productReviews = reviews.filter((r) => r.productId === product.id);
   const related = products.filter((p) => p.id !== product.id && p.categoryIds.some((c) => product.categoryIds.includes(c))).slice(0, 4);
   const isWished = wished(product.id);
@@ -163,7 +182,7 @@ export function Product() {
                   className="h-full w-full"
                 >
                   <SafeImage
-                    src={product.images[imageIdx]}
+                    src={heroImage}
                     alt={product.name}
                     className="h-full w-full object-cover"
                   />
@@ -258,6 +277,39 @@ export function Product() {
             <p className={`mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300 ${lang === 'bn' && product.descriptionBn ? 'font-bn' : ''}`}>
               {lang === 'bn' && product.descriptionBn ? product.descriptionBn : product.description}
             </p>
+
+            {hasColors && (
+              <div className="mt-5">
+                <span className="label">Colour</span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {colors.map((c) => {
+                    const active = c.id === selectedColorId;
+                    const display = lang === 'bn' && c.nameBn ? c.nameBn : c.name;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setPickedColorId(c.id)}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-sm font-semibold transition ${
+                          active
+                            ? 'border-brand-500 bg-brand-500/10 text-brand-700 ring-2 ring-brand-500/30 dark:text-brand-300'
+                            : 'border-slate-200 bg-white/70 hover:border-brand-400 dark:border-white/10 dark:bg-slate-900/60'
+                        }`}
+                        aria-pressed={active}
+                        aria-label={`Select colour ${display}`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="h-4 w-4 shrink-0 rounded-full border border-slate-300 dark:border-white/20"
+                          style={{ background: c.swatch || '#e5e7eb' }}
+                        />
+                        <span>{display}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {hasVariants && (
               <div className="mt-5">
@@ -505,7 +557,11 @@ export function Product() {
                     toast.error(product.type === 'clothing' ? 'Select a size first' : 'Select an option first');
                     return;
                   }
-                  add(product, qty, { variant: selectedVariant, crate: selectedCrate });
+                  add(product, qty, {
+                    variant: selectedVariant,
+                    crate: selectedCrate,
+                    color: selectedColor,
+                  });
                   pixelEvent('AddToCart', {
                     content_ids: [product.id],
                     content_name: product.name,
@@ -575,7 +631,7 @@ export function Product() {
                     productId: product.id,
                     name: product.name,
                     price: effectivePrice,
-                    image: product.images[0],
+                    image: selectedColor?.image || product.images[0],
                     quantity: qty,
                     stock: effectiveStock,
                     slug: product.slug,
@@ -586,6 +642,9 @@ export function Product() {
                     crateId: selectedCrate?.id,
                     crateLabel: selectedCrate?.label,
                     cratePrice: selectedCrate?.price,
+                    colorId: selectedColor?.id,
+                    colorLabel: selectedColor?.name,
+                    colorImage: selectedColor?.image,
                   };
                   pixelEvent('AddToCart', {
                     content_ids: [product.id],
