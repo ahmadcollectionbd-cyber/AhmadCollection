@@ -57,7 +57,7 @@ export function AdminProducts() {
 
   const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<Form>({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<Form>({
     resolver: zodResolver(schema) as unknown as Resolver<Form>,
   });
 
@@ -158,11 +158,6 @@ export function AdminProducts() {
     }
     const finalVariants =
       values.type === 'clothing' && variants.length > 0 ? variants : undefined;
-    // Clothing: cap aggregate stock by sum of size stocks for inventory parity.
-    const aggregateStock = finalVariants
-      ? finalVariants.reduce((acc, v) => acc + (v.stock || 0), 0)
-      : values.stock;
-
     const isFood = values.type === 'food';
     const finalPerKg = isFood && pricedPerKg ? true : undefined;
     const finalMinKg = finalPerKg ? minOrderKg : undefined;
@@ -200,6 +195,24 @@ export function AdminProducts() {
               return out;
             })
         : undefined;
+
+    // Aggregate stock: clothing sums size variants; food-with-packages
+    // sums each package's stock so the admin list shows a meaningful
+    // total. Otherwise we trust the manually entered value.
+    const aggregateStock = finalVariants
+      ? finalVariants.reduce((acc, v) => acc + (v.stock || 0), 0)
+      : finalPackages
+        ? finalPackages.reduce(
+            (acc, p) => acc + (typeof p.stock === 'number' ? p.stock : 0),
+            0,
+          )
+        : values.stock;
+
+    // Food prices come from packages (or per-kg tiers), so the base
+    // price/comparePrice fields are hidden in the form. Persist 0 to
+    // avoid stale legacy values overriding the package prices.
+    const finalBasePrice = isFood ? 0 : values.price;
+    const finalCompare = isFood ? undefined : values.comparePrice;
     const finalAdvance =
       advanceCharge.trim() === '' ? undefined : Math.max(0, Number(advanceCharge) || 0);
 
@@ -213,8 +226,8 @@ export function AdminProducts() {
         description: values.description,
         shortDescription: finalShortDesc,
         specifications: finalSpecs,
-        price: values.price,
-        comparePrice: values.comparePrice,
+        price: finalBasePrice,
+        comparePrice: finalCompare,
         stock: aggregateStock,
         categoryIds: [values.categoryId],
         images,
@@ -238,8 +251,8 @@ export function AdminProducts() {
         name: values.name,
         description: values.description,
         shortDescription: finalShortDesc,
-        price: values.price,
-        comparePrice: values.comparePrice,
+        price: finalBasePrice,
+        comparePrice: finalCompare,
         stock: aggregateStock,
         images,
         categoryIds: [values.categoryId],
@@ -365,35 +378,38 @@ export function AdminProducts() {
                 <label className="label">Short description <span className="text-[10px] text-slate-400">(shown below title)</span></label>
                 <input className="input mt-1" placeholder="Brief tagline for the product" {...register('shortDescription')} />
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="label">
-                    Price{productType === 'food' && pricedPerKg ? ' (৳/kg)' : ' (৳)'}
-                  </label>
-                  <input type="number" className="input mt-1" {...register('price')} />
+              {productType !== 'food' && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="label">Price (৳)</label>
+                    <input type="number" className="input mt-1" {...register('price')} />
+                  </div>
+                  <div>
+                    <label className="label">Compare price</label>
+                    <input type="number" className="input mt-1" {...register('comparePrice')} />
+                  </div>
+                  <div>
+                    <label className="label">Stock</label>
+                    <input
+                      type="number"
+                      className="input mt-1 disabled:opacity-60"
+                      disabled={productType === 'clothing'}
+                      {...register('stock')}
+                    />
+                    {productType === 'clothing' && (
+                      <p className="mt-1 text-[10px] text-slate-500">Set per-size below.</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <label className="label">Compare price</label>
-                  <input type="number" className="input mt-1" {...register('comparePrice')} />
+              )}
+              {productType === 'food' && (
+                <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 p-3 text-[11px] text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:text-emerald-200">
+                  Food products are priced through their <strong>Pre-built
+                  packages</strong> below — each package has its own price and
+                  stock. The default Price / Compare price / Stock fields are
+                  not used.
                 </div>
-                <div>
-                  <label className="label">
-                    Stock{productType === 'food' && pricedPerKg ? ' (kg)' : ''}
-                  </label>
-                  <input
-                    type="number"
-                    className="input mt-1 disabled:opacity-60"
-                    disabled={productType === 'clothing'}
-                    {...register('stock')}
-                  />
-                  {productType === 'clothing' && (
-                    <p className="mt-1 text-[10px] text-slate-500">Set per-size below.</p>
-                  )}
-                  {productType === 'food' && pricedPerKg && (
-                    <p className="mt-1 text-[10px] text-slate-500">Total kg available.</p>
-                  )}
-                </div>
-              </div>
+              )}
               <div>
                 <label className="label">Category</label>
                 <select className="input mt-1" {...register('categoryId')}>
@@ -410,6 +426,14 @@ export function AdminProducts() {
                       const v = e.target.value as ProductType;
                       setProductType(v);
                       if (v !== 'clothing') setVariants([]);
+                      if (v === 'food') {
+                        // Food prices come from packages — clear the
+                        // legacy base price / stock so the hidden fields
+                        // don't keep stale values.
+                        setValue('price', 0);
+                        setValue('comparePrice', undefined);
+                        setValue('stock', 0);
+                      }
                     },
                   })}
                 >
@@ -420,7 +444,7 @@ export function AdminProducts() {
                 <p className="mt-1 text-[11px] text-slate-500">
                   {productType === 'standard' && 'Single price, single SKU. Inside / Outside delivery.'}
                   {productType === 'clothing' && 'Pick the sizes you stock and set per-size stock below.'}
-                  {productType === 'food' && 'Per-kg pricing, weight tiers and crate (kerat) options. Mango delivery in next update.'}
+                  {productType === 'food' && 'Pricing comes from pre-built packages below. Optional per-kg pricing and crate (kerat) options.'}
                 </p>
               </div>
 
@@ -537,8 +561,9 @@ export function AdminProducts() {
                           />
                         </label>
                         <p className="text-[11px] text-slate-500">
-                          The base <strong>Price</strong> field above is treated as
-                          ৳/kg. Customer&apos;s quantity input becomes a kg field.
+                          Customer&apos;s quantity becomes a kg input. Use weight
+                          tiers below to define ৳/kg breakpoints, or use
+                          packages above for fixed-size packs.
                         </p>
                       </div>
 
