@@ -84,8 +84,14 @@ export const useCartStore = create<CartState>()(
           const stock = pkg.stock ?? Number.MAX_SAFE_INTEGER;
           const incPkg = Math.max(1, Math.floor(qty));
           const cratePrice = pkg.crate ? pkg.crate.price : undefined;
+          // The crate has a count (`quantity`); legacy data may still
+          // expose `quantityKg` instead. Format as "× N" so the cart
+          // shows e.g. "Plastic crate × 1" rather than the old "· N kg".
+          const crateCount = pkg.crate
+            ? pkg.crate.quantity ?? pkg.crate.quantityKg
+            : undefined;
           const crateLabel = pkg.crate
-            ? `${pkg.crate.name}${pkg.crate.quantityKg ? ` · ${pkg.crate.quantityKg} kg` : ''}`
+            ? `${pkg.crate.name}${crateCount ? ` × ${crateCount}` : ''}`
             : undefined;
           const existing = get().items.find((i) => cartLineKey(i) === key);
           if (existing) {

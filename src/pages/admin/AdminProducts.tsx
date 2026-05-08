@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
-import type { CrateOption, FoodPackage, Product, ProductType, ProductVariant, WeightTier } from '../../types';
+import type { FoodPackage, Product, ProductType, ProductVariant } from '../../types';
 import { formatBDT, slugify } from '../../lib/utils';
 import { uploadProductImage } from '../../lib/upload';
 import { PageHeader } from '../../components/admin/PageHeader';
@@ -47,10 +47,6 @@ export function AdminProducts() {
   const [uploading, setUploading] = useState(false);
   const [productType, setProductType] = useState<ProductType>('standard');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
-  const [pricedPerKg, setPricedPerKg] = useState(false);
-  const [minOrderKg, setMinOrderKg] = useState<number>(5);
-  const [weightTiers, setWeightTiers] = useState<WeightTier[]>([]);
-  const [crateOptions, setCrateOptions] = useState<CrateOption[]>([]);
   const [foodPackages, setFoodPackages] = useState<FoodPackage[]>([]);
   const [advanceCharge, setAdvanceCharge] = useState<string>('');
   const [specifications, setSpecifications] = useState<{ key: string; value: string }[]>([]);
@@ -66,10 +62,6 @@ export function AdminProducts() {
     setImages([]);
     setProductType('standard');
     setVariants([]);
-    setPricedPerKg(false);
-    setMinOrderKg(5);
-    setWeightTiers([]);
-    setCrateOptions([]);
     setFoodPackages([]);
     setAdvanceCharge('');
     setSpecifications([]);
@@ -92,10 +84,6 @@ export function AdminProducts() {
     setImages(p.images);
     setProductType(p.type ?? 'standard');
     setVariants(p.variants ?? []);
-    setPricedPerKg(!!p.pricedPerKg);
-    setMinOrderKg(p.minOrderKg ?? 5);
-    setWeightTiers(p.weightTiers ?? []);
-    setCrateOptions(p.crateOptions ?? []);
     setFoodPackages(p.foodPackages ?? []);
     setAdvanceCharge(
       typeof p.advanceDeliveryCharge === 'number' ? String(p.advanceDeliveryCharge) : '',
@@ -159,16 +147,6 @@ export function AdminProducts() {
     const finalVariants =
       values.type === 'clothing' && variants.length > 0 ? variants : undefined;
     const isFood = values.type === 'food';
-    const finalPerKg = isFood && pricedPerKg ? true : undefined;
-    const finalMinKg = finalPerKg ? minOrderKg : undefined;
-    const finalTiers =
-      finalPerKg && weightTiers.length > 0
-        ? weightTiers.filter((t) => t.minKg > 0 && t.pricePerKg > 0)
-        : undefined;
-    const finalCrates =
-      isFood && crateOptions.length > 0
-        ? crateOptions.filter((c) => c.label.trim().length > 0 && c.price >= 0)
-        : undefined;
     const finalPackages =
       isFood && foodPackages.length > 0
         ? foodPackages
@@ -185,9 +163,19 @@ export function AdminProducts() {
                 out.comparePrice = pkg.comparePrice;
               if (typeof pkg.stock === 'number' && pkg.stock >= 0) out.stock = pkg.stock;
               if (pkg.crate && pkg.crate.name.trim().length > 0) {
+                // Older drafts may still carry the legacy `quantityKg`
+                // field; prefer the renamed `quantity` count and fall
+                // back to it so editing-and-saving doesn't drop the
+                // value. Stored field is `quantity` going forward.
+                const rawQuantity =
+                  typeof pkg.crate.quantity === 'number'
+                    ? pkg.crate.quantity
+                    : typeof pkg.crate.quantityKg === 'number'
+                      ? pkg.crate.quantityKg
+                      : 1;
                 out.crate = {
                   name: pkg.crate.name.trim(),
-                  quantityKg: Math.max(0, pkg.crate.quantityKg || 0),
+                  quantity: Math.max(1, Math.round(rawQuantity || 1)),
                   price: Math.max(0, pkg.crate.price || 0),
                 };
                 if (pkg.crate.nameBn?.trim()) out.crate.nameBn = pkg.crate.nameBn.trim();
@@ -233,10 +221,6 @@ export function AdminProducts() {
         images,
         type: values.type,
         variants: finalVariants,
-        pricedPerKg: finalPerKg,
-        minOrderKg: finalMinKg,
-        weightTiers: finalTiers,
-        crateOptions: finalCrates,
         foodPackages: finalPackages,
         advanceDeliveryCharge: finalAdvance,
         featured: values.featured,
@@ -262,10 +246,6 @@ export function AdminProducts() {
         specifications: finalSpecs,
         type: values.type,
         variants: finalVariants,
-        pricedPerKg: finalPerKg,
-        minOrderKg: finalMinKg,
-        weightTiers: finalTiers,
-        crateOptions: finalCrates,
         foodPackages: finalPackages,
         advanceDeliveryCharge: finalAdvance,
         featured: values.featured,
@@ -310,7 +290,28 @@ export function AdminProducts() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
+              {filtered.map((p) => {
+                // Food products store pricing/stock per package — derive a
+                // meaningful display value for the admin list. Show a range
+                // when packages span more than one price; sum package stocks
+                // for the stock badge so the legacy `p.stock` field (always
+                // 0 for new food products) doesn't masquerade as out-of-stock.
+                const pkgs = p.type === 'food' ? p.foodPackages ?? [] : [];
+                const pkgPrices = pkgs.map((pkg) => pkg.price);
+                const minPkgPrice = pkgPrices.length ? Math.min(...pkgPrices) : null;
+                const maxPkgPrice = pkgPrices.length ? Math.max(...pkgPrices) : null;
+                const priceLabel =
+                  minPkgPrice !== null && maxPkgPrice !== null
+                    ? minPkgPrice === maxPkgPrice
+                      ? formatBDT(minPkgPrice)
+                      : `${formatBDT(minPkgPrice)} – ${formatBDT(maxPkgPrice)}`
+                    : formatBDT(p.price);
+                const pkgStock = pkgs.reduce(
+                  (acc, pkg) => acc + (typeof pkg.stock === 'number' ? pkg.stock : 0),
+                  0,
+                );
+                const displayStock = pkgs.length ? pkgStock : p.stock;
+                return (
                 <tr key={p.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -324,10 +325,10 @@ export function AdminProducts() {
                   <td className="px-4 py-3 text-xs text-slate-500">
                     {p.categoryIds.map((cid) => categories.find((c) => c.id === cid)?.name).filter(Boolean).join(', ')}
                   </td>
-                  <td className="px-4 py-3 font-semibold">{formatBDT(p.price)}</td>
+                  <td className="px-4 py-3 font-semibold">{priceLabel}</td>
                   <td className="px-4 py-3">
-                    <span className={`badge ${p.stock > 0 ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/10 text-red-700 dark:text-red-300'}`}>
-                      {p.stock}
+                    <span className={`badge ${displayStock > 0 ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+                      {displayStock}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -347,7 +348,8 @@ export function AdminProducts() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {filtered.length === 0 && (
                 <tr><td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-500">No products found.</td></tr>
               )}
@@ -534,214 +536,9 @@ export function AdminProducts() {
 
               {productType === 'food' && (
                 <div className="rounded-2xl border border-emerald-200/60 bg-emerald-50/40 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-                  <div className="flex items-center justify-between">
-                    <span className="label">Food / mango settings</span>
-                    <label className="inline-flex items-center gap-2 text-xs font-semibold">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300"
-                        checked={pricedPerKg}
-                        onChange={(e) => setPricedPerKg(e.target.checked)}
-                      />
-                      Sold per-kg
-                    </label>
-                  </div>
-
-                  {pricedPerKg && (
-                    <div className="mt-3 grid gap-3">
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <label className="text-[11px] text-slate-500">
-                          Minimum order (kg)
-                          <input
-                            type="number"
-                            min={1}
-                            value={minOrderKg}
-                            onChange={(e) => setMinOrderKg(Math.max(1, Number(e.target.value) || 1))}
-                            className="input mt-0.5 h-9 py-1.5 text-xs"
-                          />
-                        </label>
-                        <p className="text-[11px] text-slate-500">
-                          Customer&apos;s quantity becomes a kg input. Use weight
-                          tiers below to define ৳/kg breakpoints, or use
-                          packages above for fixed-size packs.
-                        </p>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="label">Bulk weight tiers (optional)</span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setWeightTiers((prev) => [
-                                ...prev,
-                                { minKg: 20, pricePerKg: 0 },
-                              ])
-                            }
-                            className="text-[11px] font-semibold text-emerald-600 hover:underline"
-                          >
-                            + Add tier
-                          </button>
-                        </div>
-                        {weightTiers.length === 0 ? (
-                          <p className="mt-1 text-[11px] text-slate-500">
-                            e.g. 20+ kg → ৳750/kg. Highest matching tier wins.
-                          </p>
-                        ) : (
-                          <div className="mt-2 grid gap-2">
-                            {weightTiers.map((tier, idx) => (
-                              <div key={idx} className="grid items-center gap-2 sm:grid-cols-[1fr_1fr_28px]">
-                                <label className="text-[11px] text-slate-500">
-                                  Min kg
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={tier.minKg}
-                                    onChange={(e) =>
-                                      setWeightTiers((prev) =>
-                                        prev.map((t, i) =>
-                                          i === idx ? { ...t, minKg: Math.max(1, Number(e.target.value) || 1) } : t,
-                                        ),
-                                      )
-                                    }
-                                    className="input mt-0.5 h-9 py-1.5 text-xs"
-                                  />
-                                </label>
-                                <label className="text-[11px] text-slate-500">
-                                  Price (৳/kg)
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={tier.pricePerKg}
-                                    onChange={(e) =>
-                                      setWeightTiers((prev) =>
-                                        prev.map((t, i) =>
-                                          i === idx ? { ...t, pricePerKg: Math.max(0, Number(e.target.value) || 0) } : t,
-                                        ),
-                                      )
-                                    }
-                                    className="input mt-0.5 h-9 py-1.5 text-xs"
-                                  />
-                                </label>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setWeightTiers((prev) => prev.filter((_, i) => i !== idx))
-                                  }
-                                  className="rounded-md p-1.5 text-accent-500 hover:bg-accent-500/10"
-                                  aria-label="Remove tier"
-                                >
-                                  <FiX className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-4">
+                  <div>
                     <div className="flex items-center justify-between">
-                      <span className="label">Crate / কেরাত options (optional)</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCrateOptions((prev) => [
-                            ...prev,
-                            {
-                              id: `crate-${Date.now()}-${prev.length}`,
-                              label: '',
-                              capacityKg: 10,
-                              price: 0,
-                            },
-                          ])
-                        }
-                        className="text-[11px] font-semibold text-amber-600 hover:underline"
-                      >
-                        + Add crate
-                      </button>
-                    </div>
-                    {crateOptions.length === 0 ? (
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        e.g. 10kg crate ৳50, 20kg crate ৳80. Customer picks one
-                        (or none) at checkout.
-                      </p>
-                    ) : (
-                      <div className="mt-2 grid gap-2">
-                        {crateOptions.map((c, idx) => (
-                          <div key={c.id} className="grid items-center gap-2 sm:grid-cols-[1.4fr_0.8fr_0.8fr_28px]">
-                            <label className="text-[11px] text-slate-500">
-                              Label
-                              <input
-                                type="text"
-                                value={c.label}
-                                placeholder="10kg crate"
-                                onChange={(e) =>
-                                  setCrateOptions((prev) =>
-                                    prev.map((x, i) => (i === idx ? { ...x, label: e.target.value } : x)),
-                                  )
-                                }
-                                className="input mt-0.5 h-9 py-1.5 text-xs"
-                              />
-                            </label>
-                            <label className="text-[11px] text-slate-500">
-                              Capacity (kg)
-                              <input
-                                type="number"
-                                min={1}
-                                value={c.capacityKg ?? ''}
-                                onChange={(e) =>
-                                  setCrateOptions((prev) =>
-                                    prev.map((x, i) =>
-                                      i === idx
-                                        ? {
-                                            ...x,
-                                            capacityKg:
-                                              e.target.value === '' ? undefined : Math.max(1, Number(e.target.value)),
-                                          }
-                                        : x,
-                                    ),
-                                  )
-                                }
-                                className="input mt-0.5 h-9 py-1.5 text-xs"
-                              />
-                            </label>
-                            <label className="text-[11px] text-slate-500">
-                              Price (৳)
-                              <input
-                                type="number"
-                                min={0}
-                                value={c.price}
-                                onChange={(e) =>
-                                  setCrateOptions((prev) =>
-                                    prev.map((x, i) =>
-                                      i === idx ? { ...x, price: Math.max(0, Number(e.target.value) || 0) } : x,
-                                    ),
-                                  )
-                                }
-                                className="input mt-0.5 h-9 py-1.5 text-xs"
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setCrateOptions((prev) => prev.filter((_, i) => i !== idx))
-                              }
-                              className="rounded-md p-1.5 text-accent-500 hover:bg-accent-500/10"
-                              aria-label="Remove crate"
-                            >
-                              <FiX className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between">
-                      <span className="label">Pre-built packages (optional)</span>
+                      <span className="label">Pre-built packages</span>
                       <button
                         type="button"
                         onClick={() =>
@@ -934,7 +731,7 @@ export function AdminProducts() {
                                           i === idx
                                             ? {
                                                 ...x,
-                                                crate: { name: '', quantityKg: pkg.weightKg, price: 0 },
+                                                crate: { name: '', quantity: 1, price: 0 },
                                               }
                                             : x,
                                         ),
@@ -985,12 +782,14 @@ export function AdminProducts() {
                                     />
                                   </label>
                                   <label className="text-[11px] text-slate-500">
-                                    Quantity (kg)
+                                    Quantity
                                     <input
                                       type="number"
-                                      min={0}
-                                      step={0.5}
-                                      value={pkg.crate.quantityKg}
+                                      min={1}
+                                      step={1}
+                                      value={
+                                        pkg.crate.quantity ?? pkg.crate.quantityKg ?? 1
+                                      }
                                       onChange={(e) =>
                                         setFoodPackages((prev) =>
                                           prev.map((x, i) =>
@@ -999,7 +798,10 @@ export function AdminProducts() {
                                                   ...x,
                                                   crate: {
                                                     ...x.crate,
-                                                    quantityKg: Math.max(0, Number(e.target.value) || 0),
+                                                    quantity: Math.max(
+                                                      1,
+                                                      Math.round(Number(e.target.value) || 1),
+                                                    ),
                                                   },
                                                 }
                                               : x,

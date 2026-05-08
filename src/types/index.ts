@@ -209,8 +209,14 @@ export interface FoodPackage {
   crate?: {
     name: string;
     nameBn?: string;
-    /** Crate capacity / quantity (kg). */
-    quantityKg: number;
+    /**
+     * How many crates are included with the package — a count, not a
+     * weight. `quantityKg` is the legacy field name kept on disk so
+     * existing data still loads; new writes set `quantity`.
+     */
+    quantity: number;
+    /** @deprecated legacy field for older data — read `quantity` instead. */
+    quantityKg?: number;
     /** Crate price (BDT). 0 means included free. */
     price: number;
   };
