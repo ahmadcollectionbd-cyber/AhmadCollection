@@ -298,7 +298,13 @@ export function Checkout() {
     ) {
       return toast.error('Please enter the transaction ID');
     }
-    const crateTotal = items.reduce((acc, it) => acc + (it.cratePrice ?? 0), 0);
+    // Pre-built food packages bundle one crate per package, so the crate
+    // charge scales with line quantity. Per-kg crate selections stay a
+    // single charge per cart line. Mirrors the cart store's `crateTotal`.
+    const crateTotal = items.reduce(
+      (acc, it) => acc + (it.cratePrice ?? 0) * (it.packageId ? it.quantity : 1),
+      0,
+    );
     // The Firestore document ID is intentionally the same as the unguessable
     // short ID. That lets us expose Track Order to guests via a single
     // `getDoc(doc('orders', shortId))` (a `get`, not a `list`) so the rule
@@ -976,7 +982,15 @@ export function Checkout() {
               {items.some((it) => it.cratePrice && it.cratePrice > 0) && (
                 <div className="flex justify-between">
                   <dt className="text-slate-500">Crate / box</dt>
-                  <dd>{formatBDT(items.reduce((acc, it) => acc + (it.cratePrice ?? 0), 0))}</dd>
+                  <dd>
+                    {formatBDT(
+                      items.reduce(
+                        (acc, it) =>
+                          acc + (it.cratePrice ?? 0) * (it.packageId ? it.quantity : 1),
+                        0,
+                      ),
+                    )}
+                  </dd>
                 </div>
               )}
               {standardSubtotal > 0 && (

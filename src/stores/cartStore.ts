@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { CartItem, CrateOption, FoodPackage, Product, ProductVariant } from '../types';
+import type { CartItem, CrateOption, FoodPackage, Product, ProductColor, ProductVariant } from '../types';
 
 interface AddOptions {
   variant?: ProductVariant;
@@ -11,6 +11,12 @@ interface AddOptions {
    * options are ignored — the package carries its own crate inline.
    */
   pkg?: FoodPackage;
+  /**
+   * Selected colour for `clothing` products. Same product + same size +
+   * different colour = different cart line so the customer can buy
+   * multiple colours of the same shirt at once.
+   */
+  color?: ProductColor;
 }
 
 interface CartState {
@@ -43,15 +49,16 @@ interface CartState {
 
 /**
  * Stable composite key for a cart line. Two lines with the same product
- * but different variants (e.g. clothing in size M vs L) — or different
- * food packages (e.g. 5 kg vs 10 kg pack) — are kept apart so the
- * customer can order both. Crate is intentionally NOT in the key so the
- * customer can switch crates on the same line.
+ * but different variants (e.g. clothing in size M vs L), different
+ * colours (red vs blue) or different food packages (5 kg vs 10 kg pack)
+ * are kept apart so the customer can order each combination. Crate is
+ * intentionally NOT in the key so the customer can switch crates on
+ * the same line.
  */
 export function cartLineKey(
-  item: Pick<CartItem, 'productId' | 'variantId' | 'packageId'>,
+  item: Pick<CartItem, 'productId' | 'variantId' | 'packageId' | 'colorId'>,
 ): string {
-  return `${item.productId}|${item.variantId ?? ''}|${item.packageId ?? ''}`;
+  return `${item.productId}|${item.variantId ?? ''}|${item.packageId ?? ''}|${item.colorId ?? ''}`;
 }
 
 /**
@@ -77,6 +84,7 @@ export const useCartStore = create<CartState>()(
         const variant = extras?.variant;
         const crate = extras?.crate;
         const pkg = extras?.pkg;
+        const color = extras?.color;
 
         // Pre-built food package — `qty` is integer count of packages.
         if (pkg) {
@@ -127,7 +135,11 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        const key = cartLineKey({ productId: p.id, variantId: variant?.id });
+        const key = cartLineKey({
+          productId: p.id,
+          variantId: variant?.id,
+          colorId: color?.id,
+        });
         const stock = variant ? variant.stock : p.stock;
 
         if (p.pricedPerKg) {
@@ -189,6 +201,10 @@ export const useCartStore = create<CartState>()(
             ),
           });
         } else {
+          // Picked colour image takes priority over the variant swatch
+          // and the product cover so the cart thumbnail matches what the
+          // customer just selected.
+          const lineImage = color?.image || variant?.image || p.images[0];
           set({
             items: [
               ...get().items,
@@ -196,13 +212,16 @@ export const useCartStore = create<CartState>()(
                 productId: p.id,
                 name: p.name,
                 price,
-                image: variant?.image || p.images[0],
+                image: lineImage,
                 quantity: Math.max(1, Math.min(stock, qty)),
                 stock,
                 slug: p.slug,
                 productType: p.type,
                 variantId: variant?.id,
                 variantLabel: variant?.label,
+                colorId: color?.id,
+                colorLabel: color?.name,
+                colorImage: color?.image,
               },
             ],
           });
@@ -238,11 +257,20 @@ export const useCartStore = create<CartState>()(
           return acc + i.quantity;
         }, 0),
       subtotal: () =>
-        get().items.reduce(
-          (acc, i) => acc + i.price * i.quantity + (i.cratePrice ?? 0),
-          0,
-        ),
-      crateTotal: () => get().items.reduce((acc, i) => acc + (i.cratePrice ?? 0), 0),
+        get().items.reduce((acc, i) => {
+          // Pre-built food packages bundle a per-package crate cost —
+          // when the customer takes N packages they also get N crates,
+          // so the crate price multiplies by line quantity. Per-kg crate
+          // options remain a single charge per cart line.
+          const isPackage = !!i.packageId;
+          const crate = (i.cratePrice ?? 0) * (isPackage ? i.quantity : 1);
+          return acc + i.price * i.quantity + crate;
+        }, 0),
+      crateTotal: () =>
+        get().items.reduce((acc, i) => {
+          const isPackage = !!i.packageId;
+          return acc + (i.cratePrice ?? 0) * (isPackage ? i.quantity : 1);
+        }, 0),
     }),
     { name: 'ac-cart' },
   ),
