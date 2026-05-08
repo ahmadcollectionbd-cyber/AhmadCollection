@@ -360,7 +360,15 @@ export function Product() {
                               <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                                 <span>
                                   {lang === 'bn' && pkg.crate.nameBn ? pkg.crate.nameBn : pkg.crate.name}
-                                  {pkg.crate.quantityKg ? ` · ${pkg.crate.quantityKg} kg` : ''}
+                                  {(() => {
+                                    // Crate is a count, not a weight.
+                                    // Legacy data may still expose the
+                                    // old `quantityKg` field — fall back
+                                    // to it so older products still
+                                    // render their crate count.
+                                    const n = pkg.crate.quantity ?? pkg.crate.quantityKg;
+                                    return n ? ` × ${n}` : '';
+                                  })()}
                                 </span>
                                 <span className="opacity-80">
                                   {pkg.crate.price === 0 ? '— Free' : `+${formatBDT(pkg.crate.price)}`}
@@ -542,7 +550,10 @@ export function Product() {
                       packageWeightKg: pkg.weightKg,
                       crateId: pkg.crate ? `pkg-${pkg.id}-crate` : undefined,
                       crateLabel: pkg.crate
-                        ? `${pkg.crate.name}${pkg.crate.quantityKg ? ` · ${pkg.crate.quantityKg} kg` : ''}`
+                        ? (() => {
+                            const n = pkg.crate.quantity ?? pkg.crate.quantityKg;
+                            return `${pkg.crate.name}${n ? ` × ${n}` : ''}`;
+                          })()
                         : undefined,
                       cratePrice: pkg.crate ? pkg.crate.price : undefined,
                     };
