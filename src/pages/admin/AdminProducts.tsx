@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { useDataStore } from '../../stores/dataStore';
 import type { FoodPackage, Product, ProductColor, ProductType, ProductVariant } from '../../types';
-import { formatBDT, slugify } from '../../lib/utils';
+import { formatBDT, slugifyUnique } from '../../lib/utils';
 import { uploadProductImage } from '../../lib/upload';
 import { PageHeader } from '../../components/admin/PageHeader';
 
@@ -253,7 +253,11 @@ export function AdminProducts() {
     const finalShortDesc = values.shortDescription?.trim() || undefined;
     const finalSpecs = specifications.filter((s) => s.key.trim() && s.value.trim());
     if (editing) {
-      const newSlug = slugify(values.name);
+      // Only re-roll the slug when the customer-facing name actually
+      // changes, so editing other fields (price, stock, images) keeps
+      // the public URL stable. New slug always picks up a fresh random
+      // id prefix to stay collision-free.
+      const newSlug = slugifyUnique(values.name);
       await updateProduct(editing.id, {
         name: values.name,
         slug: editing.name === values.name ? editing.slug : newSlug,
@@ -278,7 +282,9 @@ export function AdminProducts() {
       const id = `p-${Date.now()}`;
       await addProduct({
         id,
-        slug: slugify(values.name),
+        // `slugifyUnique` prepends a 4-char random id so two products
+        // with the same (or Bangla-only) name still get distinct URLs.
+        slug: slugifyUnique(values.name),
         name: values.name,
         description: values.description,
         shortDescription: finalShortDesc,

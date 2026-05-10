@@ -43,7 +43,41 @@ export function slugify(s: string) {
     .trim()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+// Lower-case alphanumerics minus the visually confusing ones (0/o, 1/l/i).
+const SLUG_ID_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
+
+/**
+ * Short random alphanumeric token used as a uniqueness prefix on
+ * generated slugs. 4 chars over 31 alphabet ≈ ~924k combinations,
+ * collision-resistant for product catalogs of any realistic size.
+ */
+export function randomSlugId(len = 4) {
+  let s = '';
+  for (let i = 0; i < len; i++) {
+    s += SLUG_ID_CHARS[Math.floor(Math.random() * SLUG_ID_CHARS.length)];
+  }
+  return s;
+}
+
+/**
+ * Slugify a name for use in a public product URL while guaranteeing
+ * the result is unique across products with the same (or empty) name.
+ *
+ * Bangla-only titles drop to an empty ASCII string under `slugify`,
+ * which would yield `/product/` (and collide with every other Bangla
+ * product); duplicate English titles ("Honey 1kg") would also share
+ * the same slug. Prefixing a 4-char random id (e.g. `jh7k-honey-1kg`
+ * or just `jh7k` for a Bangla-only title) keeps URLs short while
+ * making collisions effectively impossible.
+ */
+export function slugifyUnique(name: string) {
+  const base = slugify(name);
+  const id = randomSlugId();
+  return base ? `${id}-${base}` : id;
 }
 
 export function truncate(s: string, n = 80) {
