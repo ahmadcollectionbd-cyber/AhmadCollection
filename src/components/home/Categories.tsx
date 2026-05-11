@@ -3,6 +3,7 @@ import { useDataStore } from '../../stores/dataStore';
 import { useTranslation } from 'react-i18next';
 import { useLangStore } from '../../stores/langStore';
 import { FiArrowRight } from 'react-icons/fi';
+import { CategoryRowSkeleton } from '../ui/Skeleton';
 
 const CATEGORY_VISUALS: Record<string, { emoji: string; bg: string; border: string }> = {
   honey: { emoji: '🍯', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'group-hover:border-amber-300' },
@@ -22,6 +23,15 @@ export function Categories() {
   const lang = useLangStore((s) => s.lang);
   const categories = useDataStore((s) => s.categories);
   const products = useDataStore((s) => s.products);
+  const ready = useDataStore((s) => s.ready);
+
+  // Show a shimmer row while the realtime watcher is still mid-flight.
+  // Once `ready` flips true and there are still no categories we drop
+  // the section entirely rather than show an "empty" message.
+  if (categories.length === 0) {
+    if (!ready) return <CategoryRowSkeleton />;
+    return null;
+  }
 
   // The marquee track contains two consecutive copies of the same list and
   // is animated translateX(0) → translateX(-50%) on a slow loop, so the

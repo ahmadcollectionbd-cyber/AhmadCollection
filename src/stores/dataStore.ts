@@ -7,6 +7,10 @@ import {
   coupons as seedCoupons,
   products as seedProducts,
 } from '../data/seed';
+// `seedX` is only used by `seedDefaultData` to bootstrap a fresh Firestore
+// project (and by the admin "Resync catalog from code" tool). The client
+// store starts with empty arrays so a returning visitor never sees the
+// hard-coded sample catalog flash before realtime data arrives.
 import {
   addReviewDoc,
   deleteAnnouncement as deleteAnnouncementDoc,
@@ -83,10 +87,10 @@ interface DataState {
 export const useDataStore = create<DataState>()(
   persist(
     (set, get) => ({
-      products: seedProducts,
-      categories: seedCategories,
-      banners: seedBanners,
-      coupons: seedCoupons,
+      products: [],
+      categories: [],
+      banners: [],
+      coupons: [],
       reviews: [],
       // Local notifications start empty — admins broadcast announcements
       // through the Announcements panel instead of a hard-coded welcome
@@ -244,18 +248,23 @@ export const useDataStore = create<DataState>()(
 
       reset: () =>
         set({
-          products: seedProducts,
-          categories: seedCategories,
-          banners: seedBanners,
-          coupons: seedCoupons,
+          products: [],
+          categories: [],
+          banners: [],
+          coupons: [],
           reviews: [],
+          ready: false,
         }),
     }),
     {
       name: 'ac-data',
       // v3 wipes the legacy `welcome` toast so existing browsers stop
       // seeing the hard-coded "Use code WELCOME10" notification.
-      version: 3,
+      // v4 stops persisting the bundled sample catalog on the client so
+      // browsers that cached it (from when seed data was the initial
+      // store state) don't keep flashing it on reload. Any real catalog
+      // data is restored from Firestore via watchers a moment later.
+      version: 4,
       migrate: (persisted, version) => {
         const state = (persisted ?? {}) as Partial<DataState>;
         if (version < 3) {
@@ -263,8 +272,31 @@ export const useDataStore = create<DataState>()(
             (n) => n.id !== 'welcome',
           );
         }
+        if (version < 4) {
+          state.products = [];
+          state.categories = [];
+          state.banners = [];
+          state.coupons = [];
+          state.ready = false;
+        }
         return state as DataState;
       },
+      // `ready` is in-memory only — it tracks whether at least one
+      // realtime snapshot has been received this session. Persisting it
+      // would let returning visitors render "empty state" UIs before the
+      // realtime watcher fires. We also explicitly only persist the
+      // value-type fields (data), never the action functions, so the
+      // store stays small in localStorage.
+      partialize: (state) => ({
+        products: state.products,
+        categories: state.categories,
+        banners: state.banners,
+        coupons: state.coupons,
+        reviews: state.reviews,
+        notifications: state.notifications,
+        announcements: state.announcements,
+        readAnnouncementIds: state.readAnnouncementIds,
+      }),
     },
   ),
 );

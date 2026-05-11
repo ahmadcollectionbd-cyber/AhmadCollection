@@ -5,10 +5,12 @@ import { useDataStore } from '../stores/dataStore';
 import { ProductCard } from '../components/product/ProductCard';
 import { useLangStore } from '../stores/langStore';
 import { FiFilter } from 'react-icons/fi';
+import { ProductCardSkeleton } from '../components/ui/Skeleton';
 
 export function Shop() {
   const products = useDataStore((s) => s.products);
   const categories = useDataStore((s) => s.categories);
+  const ready = useDataStore((s) => s.ready);
   const lang = useLangStore((s) => s.lang);
   const [params, setParams] = useSearchParams();
   const cat = params.get('cat') || '';
@@ -95,7 +97,16 @@ export function Shop() {
           ))}
         </div>
 
-        {filtered.length === 0 ? (
+        {products.length === 0 && !ready ? (
+          <div
+            className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+            aria-busy="true"
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="card p-10 text-center text-sm text-slate-500">No products found. Try a different filter.</div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
