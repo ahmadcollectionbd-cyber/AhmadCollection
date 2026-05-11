@@ -4,11 +4,23 @@ import { useDataStore } from '../../stores/dataStore';
 import { useTranslation } from 'react-i18next';
 import { ProductCard } from '../product/ProductCard';
 import { FiArrowRight } from 'react-icons/fi';
+import { ProductGridSkeleton } from '../ui/Skeleton';
 
 export function FeaturedProducts() {
   const { t } = useTranslation();
   const all = useDataStore((s) => s.products);
+  const ready = useDataStore((s) => s.ready);
   const products = useMemo(() => all.filter((p) => p.featured).slice(0, 8), [all]);
+
+  // While the catalog is still loading, render a placeholder grid so
+  // the page layout stays put and the bundled sample products are
+  // never visible to customers. Once realtime is ready and there are
+  // simply no featured items, hide the section.
+  if (all.length === 0) {
+    if (!ready) return <ProductGridSkeleton title={t('home.featured')} subtitle="Hand-picked for you" />;
+    return null;
+  }
+  if (products.length === 0) return null;
 
   return (
     <section className="section mt-14">

@@ -8,6 +8,7 @@ import { useDataStore } from '../../stores/dataStore';
 import { motion } from 'framer-motion';
 import { FiShoppingCart, FiArrowRight } from 'react-icons/fi';
 import type { Banner } from '../../types';
+import { HeroSkeleton } from '../ui/Skeleton';
 
 interface SlideContent {
   titleBn: [string, string];
@@ -201,10 +202,19 @@ function CoverSlide({
 
 export function HeroSlider() {
   const all = useDataStore((s) => s.banners);
+  const ready = useDataStore((s) => s.ready);
   const banners = useMemo(
     () => all.filter((b) => b.active).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [all],
   );
+
+  // While the realtime watchers haven't reported yet, render a stable
+  // shimmer hero instead of an empty Swiper so the page doesn't
+  // collapse vertically (and CLS stays low). Once the snapshot arrives
+  // and there are still no active banners, we render nothing at all.
+  if (banners.length === 0) {
+    return ready ? null : <HeroSkeleton />;
+  }
 
   return (
     <section className="relative">
